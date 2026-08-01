@@ -155,6 +155,15 @@ export default function App() {
               currentTheme={currentTheme}
               onSettingChange={handleSettingChange}
               onThemeSwitch={handleThemeSwitch}
+              onThemesUpdated={(newThemes) => {
+                setThemes(newThemes)
+                window.soundkeys?.getCurrentTheme().then(ct => {
+                  if (ct) {
+                    setCurrentTheme(ct)
+                    audioRef.current?.loadTheme(ct)
+                  }
+                })
+              }}
             />
           )}
         </main>

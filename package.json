@@ -2,8 +2,8 @@
   "name": "soundkeys",
   "productName": "SoundKeys",
   "version": "1.0.0-beta",
-  "author": "SoundKeys",
-  "description": "Opera GX-style sound effects for every keypress on Windows",
+  "author": "Apoorv Nema",
+  "description": "Tactile audio feedback and sound effects for every keypress on Windows",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",

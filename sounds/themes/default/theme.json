@@ -1,5 +1,7 @@
 {
-  "name": "Default",
+  "name": "SoundKeys Classic",
+  "author": "Apoorv Nema",
+  "description": "Tactile mechanical keypress audio feedback",
   "typing": [
     "keyboard1.wav",
     "keyboard2.wav",

@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('soundkeys', {
   listThemes:     ()       => ipcRenderer.invoke('theme:list'),
   getCurrentTheme:()       => ipcRenderer.invoke('theme:current'),
   switchTheme:    (id)     => ipcRenderer.invoke('theme:switch', id),
+  createTheme:    (data)   => ipcRenderer.invoke('theme:create', data),
 
   // ── Window Controls ──────────────────────────────────────────────────
   minimize: () => ipcRenderer.send('window:minimize'),
