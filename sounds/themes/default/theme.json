@@ -1,0 +1,23 @@
+{
+  "name": "Default",
+  "typing": [
+    "keyboard1.wav",
+    "keyboard2.wav",
+    "keyboard3.wav",
+    "keyboard4.wav",
+    "keyboard5.wav"
+  ],
+  "spacebar": "spacebar.wav",
+  "enter": "enter.wav",
+  "tabOpen": "opentab.wav",
+  "tabClose": "closetab.wav",
+  "tabSwitch": "toggle.wav",
+  "tabReplace": "click.wav",
+  "save": "on.wav",
+  "success": "on.wav",
+  "failure": "off.wav",
+  "error": "off.wav",
+  "warning": "off.wav",
+  "explorer": "hover.wav",
+  "terminalOpen": "on.wav"
+}

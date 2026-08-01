@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build & Release output
+out/
+release/
+dist/
+build/
+
+# Logs & temp
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vite/
+
+# OS & IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

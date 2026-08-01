@@ -1,0 +1,46 @@
+{
+  appId: "com.soundkeys.app",
+  productName: "SoundKeys",
+  copyright: "Copyright © 2024 SoundKeys",
+  directories: {
+    buildResources: "build",
+    output: "release"
+  },
+  files: [
+    "out/**/*"
+  ],
+  extraResources: [
+    {
+      from: "sounds/",
+      to: "sounds/"
+    }
+  ],
+  asarUnpack: [
+    "**/node_modules/uiohook-napi/**/*"
+  ],
+  win: {
+    forceCodeSigning: false,
+    verifyUpdateCodeSignature: false,
+    target: [
+      {
+        target: "portable",
+        arch: ["x64"]
+      },
+      {
+        target: "nsis",
+        arch: ["x64"]
+      }
+    ],
+    icon: "build/icon.ico"
+  },
+  nsis: {
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    shortcutName: "SoundKeys"
+  },
+  portable: {
+    artifactName: "SoundKeys-${version}-portable.exe"
+  }
+}
