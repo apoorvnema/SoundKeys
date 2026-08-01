@@ -5,11 +5,12 @@ on:
     branches:
       - master
       - main
-  pull_request:
-    branches:
-      - master
-      - main
+    tags:
+      - 'v*'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -34,10 +35,29 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run dist
 
-      - name: Upload Release Artifacts
+      - name: Upload Build Artifacts (CI Run Summary)
         uses: actions/upload-artifact@v4
         with:
           name: SoundKeys-Windows-Builds
           path: |
             release/*.exe
           retention-days: 30
+
+      - name: Create / Update GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.1.0
+          name: "SoundKeys v1.1.0 Release"
+          body: |
+            ## SoundKeys v1.1.0 Release
+            
+            Tactile audio feedback and sound effects for every keypress on Windows.
+            
+            ### Included Executables:
+            - **SoundKeys-1.1.0-portable.exe** (Standalone portable executable, no install required)
+            - **SoundKeys Setup 1.1.0.exe** (Windows NSIS Installer)
+          files: |
+            release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
