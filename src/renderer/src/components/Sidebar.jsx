@@ -46,7 +46,7 @@ export default function Sidebar({ activePage, onNavigate }) {
       </div>
 
       <div className="sidebar-footer">
-        <span className="version-badge">v1.0.0-beta</span>
+        <span className="version-badge">v1.1.0</span>
       </div>
     </nav>
   )

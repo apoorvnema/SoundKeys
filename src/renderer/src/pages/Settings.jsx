@@ -312,7 +312,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
             </div>
             <div>
               <div className="about-name">SoundKeys</div>
-              <div className="about-version">v1.0.0 · Created by Apoorv Nema</div>
+              <div className="about-version">v1.1.0 · Created by Apoorv Nema</div>
               <div className="about-tagline">Tactile audio feedback and sound effects for every keypress on Windows</div>
             </div>
           </div>

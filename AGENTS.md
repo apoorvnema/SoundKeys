@@ -4,9 +4,13 @@ Welcome to **SoundKeys**! This document serves as the authoritative guide for AI
 
 ---
 
-## ⚠️ MANDATORY RULE FOR ALL AGENTS
+## ⚠️ MANDATORY RULES FOR ALL AGENTS
 > [!IMPORTANT]
-> **FEATURE REGISTRY MAINTENANCE**: Whenever you implement, modify, or plan a new feature, you **MUST update the Feature Registry table in this document (`AGENTS.md`)** before concluding your task.
+> 1. **FEATURE REGISTRY MAINTENANCE**: Whenever you implement, modify, or plan a new feature, you **MUST update the Feature Registry table in this document (`AGENTS.md`)** before concluding your task.
+> 2. **VERSION SYNCHRONIZATION**:
+>    - **Major Changes**: Increment the major version number (`X.0.0`).
+>    - **Minor / Subversion Changes**: Increment the minor version number (`1.X.0`).
+>    - **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `1.1.0`).
 
 ---
 
@@ -76,7 +80,7 @@ SoundKeys/
 | **FEAT-014** | Red Muted Visual Theme | Vibrant Red orb, glow rings, indicators and tray icon when muted | ✅ Operational | v1.0.0 |
 | **FEAT-015** | Taskbar Overlay Badge | Green/Red dot badge on Windows taskbar icon reflects mute state in real-time | ✅ Operational | v1.1.0 |
 | **FEAT-016** | Tray Quick Settings | Right-click tray shows Start with Windows toggle & Dynamic Status Icon toggle | ✅ Operational | v1.1.0 |
-| **FEAT-017** | GitHub Actions Pipeline | CI/CD pipeline (`.github/workflows/build.yml`) builds & uploads Windows portable and setup binaries on push to master | ✅ Operational | v1.1.0 |
+| **FEAT-017** | GitHub Actions Pipeline | CI/CD pipeline (`.github/workflows/build.yml`) builds & publishes Windows portable and setup binaries to GitHub Releases on push to master | ✅ Operational | v1.1.0 |
 
 ---
 
@@ -93,3 +97,5 @@ SoundKeys/
    - Fallback methods in `src/renderer/src/App.jsx`
 4. **Feature Registry Updates**:
    Before completing any task, update the **Feature Registry** table above in `AGENTS.md`.
+5. **Version Synchronization**:
+   For every major change update the major version (`X.0.0`) and for minor changes update subversion (`1.X.0`). Ensure matching versions in `package.json`, `Sidebar.jsx`, `Settings.jsx`, `.github/workflows/build.yml`, and `AGENTS.md` (Current version: `1.1.0`).
