@@ -93,7 +93,8 @@ SoundKeys/
 | **FEAT-023** | WPM Audit & Session Reset | Refined WPM calculation (typing keys only) + session counter reset button + seeded today count from SQLite DB | ✅ Operational | v1.2.0 |
 | **FEAT-024** | Playlist Edit & Delete | Edit custom theme configs/sounds and delete custom themes directly from Settings | ✅ Operational | v1.2.0 |
 | **FEAT-025** | Multi-Sound Typing Pool | Dynamic typing sound slots in theme creator allowing random sound selection per keypress (OperaGX style) | ✅ Operational | v1.2.0 |
-| **FEAT-026** | CI Native Rebuild & Signing | GitHub Actions workflow includes `electron-rebuild` step to prevent silent crashes and supports `CSC_LINK` code signing | ✅ Operational | v1.2.0 |
+| **FEAT-026** | CI Automatic Native Packaging & Signing | GitHub Actions workflow relies on `electron-builder` native module resolution, preventing node-gyp Visual Studio compiler errors while signing builds with `CSC_LINK` | ✅ Operational | v1.2.0 |
+
 | **FEAT-027** | Directory Reset & Fallback | Reset Data Directory to default location (%APPDATA%) + auto-fallback to default if custom directory is deleted | ✅ Operational | v1.2.0 |
 
 
