@@ -14,6 +14,15 @@ const NAV_ITEMS = [
     )
   },
   {
+    id: 'analytics',
+    label: 'Analytics',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    )
+  },
+  {
     id: 'settings',
     label: 'Settings',
     icon: (
@@ -46,7 +55,7 @@ export default function Sidebar({ activePage, onNavigate }) {
       </div>
 
       <div className="sidebar-footer">
-        <span className="version-badge">v1.1.0</span>
+        <span className="version-badge">v1.2.0</span>
       </div>
     </nav>
   )

@@ -1,7 +1,7 @@
 {
   appId: "com.soundkeys.app",
   productName: "SoundKeys",
-  copyright: "Copyright © 2024 SoundKeys",
+  copyright: "Copyright © 2026 SoundKeys",
   directories: {
     buildResources: "build",
     output: "release"
@@ -13,10 +13,15 @@
     {
       from: "sounds/",
       to: "sounds/"
+    },
+    {
+      from: "build/",
+      to: "build/"
     }
   ],
   asarUnpack: [
-    "**/node_modules/uiohook-napi/**/*"
+    "**/node_modules/uiohook-napi/**/*",
+    "**/node_modules/sql.js/**/*"
   ],
   win: {
     forceCodeSigning: false,

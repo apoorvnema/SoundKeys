@@ -30,9 +30,14 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
+      - name: Rebuild native modules for Electron
+        run: npx electron-rebuild -f -w uiohook-napi
+
       - name: Build and Package Executables
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: npm run dist
 
       - name: Upload Build Artifacts (CI Run Summary)
@@ -47,16 +52,16 @@ jobs:
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0
-          name: "SoundKeys v1.1.0 Release"
+          tag_name: ${{ github.ref_name || 'v1.2.0' }}
+          name: "SoundKeys ${{ github.ref_name || 'v1.2.0' }} Release"
           body: |
-            ## SoundKeys v1.1.0 Release
+            ## SoundKeys v1.2.0 Release
             
-            Tactile audio feedback and sound effects for every keypress on Windows.
+            Tactile audio feedback, analytics engine, and customizable sound themes for every keypress on Windows.
             
             ### Included Executables:
-            - **SoundKeys-1.1.0-portable.exe** (Standalone portable executable, no install required)
-            - **SoundKeys Setup 1.1.0.exe** (Windows NSIS Installer)
+            - **SoundKeys-1.2.0-portable.exe** (Standalone portable executable, no install required)
+            - **SoundKeys Setup 1.2.0.exe** (Windows NSIS Installer)
           files: |
             release/*.exe
         env:

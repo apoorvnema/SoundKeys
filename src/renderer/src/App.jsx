@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
+import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import AudioEngine from './components/AudioEngine'
 
@@ -147,6 +148,9 @@ export default function App() {
               lastKeyEvent={lastKeyEvent}
               onSettingChange={handleSettingChange}
             />
+          )}
+          {activePage === 'analytics' && (
+            <Analytics />
           )}
           {activePage === 'settings' && (
             <Settings
