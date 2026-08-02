@@ -9,8 +9,7 @@ Welcome to **SoundKeys**! This document serves as the authoritative guide for AI
 > 1. **FEATURE REGISTRY MAINTENANCE**: Whenever you implement, modify, or plan a new feature, you **MUST update the Feature Registry table in this document (`AGENTS.md`)** before concluding your task.
 > 2. **VERSION SYNCHRONIZATION**:
 >    - **Major Changes**: Increment the major version number (`X.0.0`).
->    - **Minor / Subversion Changes**: Increment the minor version number (`1.X.0`).
->    - **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `1.2.0`).
+>    - **Minor / Subversion Changes**: Increment the minor version number (`1.X> 3. **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `1.2.1`).
 
 ---
 
@@ -94,6 +93,8 @@ SoundKeys/
 | **FEAT-024** | Playlist Edit & Delete | Edit custom theme configs/sounds and delete custom themes directly from Settings | ✅ Operational | v1.2.0 |
 | **FEAT-025** | Multi-Sound Typing Pool | Dynamic typing sound slots in theme creator allowing random sound selection per keypress (OperaGX style) | ✅ Operational | v1.2.0 |
 | **FEAT-026** | CI Automatic Native Packaging & Signing | GitHub Actions workflow relies on `electron-builder` native module resolution, preventing node-gyp Visual Studio compiler errors while signing builds with `CSC_LINK` | ✅ Operational | v1.2.0 |
+| **FEAT-027** | Directory Reset & Fallback | Reset Data Directory to default location (%APPDATA%) + auto-fallback to default if custom directory is deleted | ✅ Operational | v1.2.0 |
+| **FEAT-028** | Subdirectory Migration Guard & Icon Tracking | Prevent recursive data directory migration into nested subfolders + tracked build/ icon assets for GitHub Actions | ✅ Operational | v1.2.1 |on-builder` native module resolution, preventing node-gyp Visual Studio compiler errors while signing builds with `CSC_LINK` | ✅ Operational | v1.2.0 |
 
 | **FEAT-027** | Directory Reset & Fallback | Reset Data Directory to default location (%APPDATA%) + auto-fallback to default if custom directory is deleted | ✅ Operational | v1.2.0 |
 
