@@ -1,5 +1,5 @@
 /**
- * SoundKeys — Main Process (v1.2.0)
+ * SoundKeys — Main Process (v2.0.0)
  *
  * Full featured desktop shell:
  * - System tray with status indicator & keypress pulse
@@ -7,14 +7,16 @@
  * - Unified Data Directory (sounds, settings, analytics DB)
  * - SQLite Analytics Engine (sql.js inline)
  * - Theme CRUD & Multi-sound typing support
+ * - Typing Test with Gemini AI paragraph generation
  */
 
 const {
   app, BrowserWindow, Tray, Menu, nativeImage,
   ipcMain, globalShortcut, dialog
 } = require('electron')
-const path = require('path')
-const fs   = require('fs')
+const path  = require('path')
+const fs    = require('fs')
+const https = require('https')
 const Store = require('electron-store')
 const initSqlJs = require('sql.js/dist/sql-asm.js')
 
@@ -70,6 +72,23 @@ class AnalyticsDB {
         peak_wpm INTEGER DEFAULT 0,
         active_minutes INTEGER DEFAULT 0
       );
+
+      CREATE TABLE IF NOT EXISTS typing_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp INTEGER NOT NULL,
+        wpm INTEGER NOT NULL,
+        accuracy REAL NOT NULL,
+        chars_correct INTEGER NOT NULL,
+        chars_total INTEGER NOT NULL,
+        duration_seconds INTEGER NOT NULL,
+        mode TEXT NOT NULL,
+        difficulty TEXT NOT NULL,
+        category TEXT,
+        paragraph_snippet TEXT,
+        is_personal_best INTEGER DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_typing_ts ON typing_sessions(timestamp);
     `)
 
     this.save()
@@ -82,6 +101,7 @@ class AnalyticsDB {
 
     console.log(`[AnalyticsDB] Database (sql.js ASM) initialized at: ${dbPath}`)
   }
+
 
   save() {
     if (!this.db || !this.dbPath) return
@@ -313,9 +333,119 @@ class AnalyticsDB {
       this.db = null
     }
   }
+
+  // ─── Typing Session Methods ───────────────────────────────────────────
+  logTypingSession({ wpm, accuracy, charsCorrect, charsTotal, durationSeconds, mode, difficulty, category, paragraphSnippet }) {
+    if (!this.db) return false
+    try {
+      const now = Date.now()
+      // Check if this is a personal best
+      const bestRes = this.db.exec(`SELECT MAX(wpm) FROM typing_sessions`)
+      const currentBest = bestRes.length > 0 && bestRes[0].values.length > 0 ? (bestRes[0].values[0][0] || 0) : 0
+      const isPersonalBest = wpm > currentBest ? 1 : 0
+
+      this.db.run(
+        `INSERT INTO typing_sessions (timestamp, wpm, accuracy, chars_correct, chars_total, duration_seconds, mode, difficulty, category, paragraph_snippet, is_personal_best)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [now, wpm, accuracy, charsCorrect, charsTotal, durationSeconds, mode, difficulty, category || '', (paragraphSnippet || '').substring(0, 100), isPersonalBest]
+      )
+      this.dirty = true
+      this.save()
+      return { success: true, isPersonalBest: isPersonalBest === 1 }
+    } catch (err) {
+      console.error('[AnalyticsDB] logTypingSession error:', err.message)
+      return false
+    }
+  }
+
+  getTypingSessions(limit = 50) {
+    if (!this.db) return []
+    try {
+      const res = this.db.exec(`
+        SELECT id, timestamp, wpm, accuracy, chars_correct, chars_total, duration_seconds, mode, difficulty, category, is_personal_best
+        FROM typing_sessions
+        ORDER BY timestamp DESC
+        LIMIT ${parseInt(limit)}
+      `)
+      if (res.length > 0) {
+        return res[0].values.map(r => ({
+          id: r[0], timestamp: r[1], wpm: r[2], accuracy: r[3],
+          charsCorrect: r[4], charsTotal: r[5], durationSeconds: r[6],
+          mode: r[7], difficulty: r[8], category: r[9], isPersonalBest: r[10] === 1
+        }))
+      }
+    } catch (err) {
+      console.error('[AnalyticsDB] getTypingSessions error:', err.message)
+    }
+    return []
+  }
+
+  getTypingPersonalBest() {
+    if (!this.db) return 0
+    try {
+      const res = this.db.exec(`SELECT MAX(wpm) FROM typing_sessions`)
+      if (res.length > 0 && res[0].values.length > 0) return res[0].values[0][0] || 0
+    } catch (_) {}
+    return 0
+  }
+
+  getTypingStats() {
+    if (!this.db) return { totalTests: 0, personalBest: 0, avgWpm: 0, bestAccuracy: 0 }
+    try {
+      const res = this.db.exec(`
+        SELECT COUNT(*), MAX(wpm), CAST(AVG(wpm) AS INTEGER), MAX(accuracy)
+        FROM typing_sessions
+      `)
+      if (res.length > 0 && res[0].values.length > 0) {
+        const v = res[0].values[0]
+        return { totalTests: v[0] || 0, personalBest: v[1] || 0, avgWpm: v[2] || 0, bestAccuracy: v[3] || 0 }
+      }
+    } catch (err) {
+      console.error('[AnalyticsDB] getTypingStats error:', err.message)
+    }
+    return { totalTests: 0, personalBest: 0, avgWpm: 0, bestAccuracy: 0 }
+  }
+
+  getTypingTrend(limit = 30) {
+    if (!this.db) return []
+    try {
+      const res = this.db.exec(`
+        SELECT id, timestamp, wpm, accuracy, difficulty, mode
+        FROM typing_sessions
+        ORDER BY timestamp DESC
+        LIMIT ${parseInt(limit)}
+      `)
+      if (res.length > 0) {
+        return res[0].values.map(r => ({
+          id: r[0], timestamp: r[1], wpm: r[2], accuracy: r[3], difficulty: r[4], mode: r[5]
+        })).reverse()
+      }
+    } catch (err) {
+      console.error('[AnalyticsDB] getTypingTrend error:', err.message)
+    }
+    return []
+  }
+
+  getTypingByDifficulty() {
+    if (!this.db) return []
+    try {
+      const res = this.db.exec(`
+        SELECT difficulty, CAST(AVG(wpm) AS INTEGER) as avg_wpm, COUNT(*) as count
+        FROM typing_sessions
+        GROUP BY difficulty
+      `)
+      if (res.length > 0) {
+        return res[0].values.map(r => ({ difficulty: r[0], avgWpm: r[1], count: r[2] }))
+      }
+    } catch (err) {
+      console.error('[AnalyticsDB] getTypingByDifficulty error:', err.message)
+    }
+    return []
+  }
 }
 
 const analyticsDB = new AnalyticsDB()
+
 
 // ─── Comprehensive Key Name Map ───────────────────────────────────────────
 const KEYCODE_TO_NAME = {
@@ -1110,7 +1240,237 @@ function setupIPC() {
       mainWindow?.hide()
     }
   })
+
+  // ─── Gemini API Key Management ─────────────────────────────────────────
+  // Key is stored in a dedicated secure store, never sent to renderer raw
+  const geminiStore = new Store({ name: 'gemini-secure', cwd: dataDir })
+
+  function callGeminiAPI(apiKey, promptText, modelName = 'gemini-2.0-flash') {
+    return new Promise((resolve) => {
+      const postData = JSON.stringify({
+        contents: [{ parts: [{ text: promptText }] }]
+      })
+
+      const options = {
+        hostname: 'generativelanguage.googleapis.com',
+        path: `/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      }
+
+      const req = https.request(options, (res) => {
+        let data = ''
+        res.on('data', chunk => { data += chunk })
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data)
+            if (json.error) {
+              const errMsg = json.error.message || ''
+              if (errMsg.includes('Quota exceeded') || json.error.code === 429 || json.error.status === 'RESOURCE_EXHAUSTED') {
+                return resolve({
+                  success: false,
+                  quotaExceeded: true,
+                  error: 'Gemini Free Tier quota exceeded. Please wait 1 minute before retrying or use offline mode.'
+                })
+              }
+              return resolve({ success: false, error: errMsg })
+            }
+            const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim()
+            if (text) resolve({ success: true, text })
+            else resolve({ success: false, error: 'No text returned from Gemini API.' })
+          } catch (err) {
+            resolve({ success: false, error: 'Failed to parse Gemini API response.' })
+          }
+        })
+      })
+
+      req.on('error', (err) => resolve({ success: false, error: err.message }))
+      req.write(postData)
+      req.end()
+    })
+  }
+
+  async function tryGeminiModels(apiKey, promptText) {
+    const candidateModels = [
+      'gemini-3.5-flash-lite'
+    ]
+
+    let lastError = null
+
+    for (const modelName of candidateModels) {
+      const res = await callGeminiAPI(apiKey, promptText, modelName)
+      if (res.success || res.quotaExceeded) {
+        return res
+      }
+      lastError = res
+      // If error is model not found or no longer available, continue to next candidate
+      const err = res.error || ''
+      if (err.includes('no longer available') || err.includes('not found') || err.includes('is not supported')) {
+        continue
+      }
+      // If error is invalid API key or auth error, return immediately
+      return res
+    }
+
+    return lastError || { success: false, error: 'Failed to connect to Gemini API. Please check network/key.' }
+  }
+
+
+
+  ipcMain.handle('gemini:set-key', (_, key) => {
+    if (key && typeof key === 'string' && key.trim()) {
+      geminiStore.set('apiKey', key.trim())
+      return { success: true }
+    } else {
+      geminiStore.delete('apiKey')
+      return { success: true, cleared: true }
+    }
+  })
+
+  ipcMain.handle('gemini:get-key', () => {
+    const key = geminiStore.get('apiKey')
+    return { isSet: Boolean(key && key.length > 0) }
+  })
+
+  ipcMain.handle('gemini:validate-key', async (_, customKey) => {
+    const apiKey = customKey ? customKey.trim() : geminiStore.get('apiKey')
+    if (!apiKey) return { valid: false, error: 'No API key provided.' }
+
+    const res = await tryGeminiModels(apiKey, 'Respond with OK')
+    if (res.success) return { valid: true }
+
+    // If quota is exceeded, the key IS valid (just rate limited)
+    if (res.quotaExceeded) {
+      return { valid: true, quotaExceeded: true, warning: 'Key is valid, but current free tier quota is temporarily exceeded.' }
+    }
+
+    return { valid: false, error: res.error }
+  })
+
+  ipcMain.handle('gemini:generate', async (_, { category, prompt, difficulty }) => {
+    const apiKey = geminiStore.get('apiKey')
+    if (!apiKey) return { success: false, error: 'No Gemini API key configured. Please add your key in Settings.' }
+
+    const difficultyInstructions = {
+      easy:   'Use simple, common words. Short sentences. Suitable for beginners.',
+      medium: 'Use everyday vocabulary with moderate sentence complexity. Mix of short and medium sentences.',
+      hard:   'Use advanced vocabulary, complex sentence structures, and technical terminology.'
+    }
+
+    const difficultyText = difficultyInstructions[difficulty] || difficultyInstructions.medium
+    const categoryContext = category ? `Category/Topic: ${category}.` : (prompt ? `Topic: ${prompt}.` : 'Category: General Knowledge.')
+
+    const fullPrompt = `Generate a single paragraph of approximately 150 words for a typing speed test. ${categoryContext} Difficulty level: ${difficulty || 'medium'}. ${difficultyText} Return ONLY the paragraph text. No headings, no titles, no quotes around the paragraph, no extra explanations.`
+
+    return tryGeminiModels(apiKey, fullPrompt)
+  })
+
+
+
+
+  // ─── Typing Paragraphs Library ─────────────────────────────────────────
+  function getParagraphsFilePath() {
+    return path.join(dataDir, 'typing-paragraphs.json')
+  }
+
+  function readParagraphs() {
+    try {
+      const fp = getParagraphsFilePath()
+      if (fs.existsSync(fp)) return JSON.parse(fs.readFileSync(fp, 'utf-8'))
+    } catch (_) {}
+    return []
+  }
+
+  function writeParagraphs(list) {
+    try {
+      fs.writeFileSync(getParagraphsFilePath(), JSON.stringify(list, null, 2), 'utf-8')
+      return true
+    } catch (err) {
+      console.error('[Typing] writeParagraphs error:', err.message)
+      return false
+    }
+  }
+
+  ipcMain.handle('typing:get-paragraphs', () => readParagraphs())
+
+  ipcMain.handle('typing:save-paragraph', (_, { text, category, source }) => {
+    const list = readParagraphs()
+    const entry = {
+      id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+      text,
+      category: category || 'Custom',
+      source: source || 'user',
+      savedAt: new Date().toISOString(),
+      timesUsed: 0
+    }
+    list.push(entry)
+    writeParagraphs(list)
+    return { success: true, paragraph: entry }
+  })
+
+  ipcMain.handle('typing:delete-paragraph', (_, id) => {
+    const list = readParagraphs().filter(p => p.id !== id)
+    writeParagraphs(list)
+    return { success: true }
+  })
+
+  ipcMain.handle('typing:use-paragraph', (_, id) => {
+    const list = readParagraphs()
+    const idx = list.findIndex(p => p.id === id)
+    if (idx !== -1) { list[idx].timesUsed = (list[idx].timesUsed || 0) + 1; writeParagraphs(list) }
+    return { success: true }
+  })
+
+  ipcMain.handle('typing:export-paragraphs', async () => {
+    if (!mainWindow) return false
+    const { filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export Typing Paragraphs',
+      defaultPath: `soundkeys_paragraphs_${new Date().toISOString().split('T')[0]}.json`,
+      filters: [{ name: 'JSON Files', extensions: ['json'] }]
+    })
+    if (!filePath) return false
+    try {
+      fs.writeFileSync(filePath, JSON.stringify(readParagraphs(), null, 2), 'utf-8')
+      return true
+    } catch (err) {
+      console.error('[Typing] exportParagraphs error:', err.message)
+      return false
+    }
+  })
+
+  ipcMain.handle('typing:import-paragraphs', async () => {
+    if (!mainWindow) return { success: false }
+    const { filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Import Typing Paragraphs',
+      properties: ['openFile'],
+      filters: [{ name: 'JSON Files', extensions: ['json'] }]
+    })
+    if (!filePaths?.[0]) return { success: false }
+    try {
+      const imported = JSON.parse(fs.readFileSync(filePaths[0], 'utf-8'))
+      if (!Array.isArray(imported)) return { success: false, error: 'Invalid file format' }
+      const existing = readParagraphs()
+      const existingIds = new Set(existing.map(p => p.id))
+      const merged = [...existing, ...imported.filter(p => p.id && !existingIds.has(p.id))]
+      writeParagraphs(merged)
+      return { success: true, imported: merged.length - existing.length, total: merged.length }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  // ─── Typing Sessions (Analytics) ────────────────────────────────────────
+  ipcMain.handle('typing:log-session',  (_, data) => analyticsDB.logTypingSession(data))
+  ipcMain.handle('typing:get-sessions', (_, limit) => analyticsDB.getTypingSessions(limit || 50))
+  ipcMain.handle('typing:get-best',     () => analyticsDB.getTypingPersonalBest())
+  ipcMain.handle('typing:get-stats',    () => analyticsDB.getTypingStats())
+  ipcMain.handle('typing:get-trend',    (_, limit) => analyticsDB.getTypingTrend(limit || 30))
+  ipcMain.handle('typing:get-by-diff',  () => analyticsDB.getTypingByDifficulty())
 }
+
 
 // ─── Global Shortcuts ─────────────────────────────────────────────────────
 function normalizeHotkey(str) {

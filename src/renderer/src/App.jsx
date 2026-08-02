@@ -3,7 +3,39 @@ import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
+import TypingTest from './pages/TypingTest'
 import AudioEngine from './components/AudioEngine'
+
+class ErrorBoundary extends React.Component {
+
+  constructor(props) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error }
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error('[App ErrorBoundary] Caught error:', error, errorInfo)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{ padding: 24, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 12, margin: 20, color: '#f87171' }}>
+          <h3 style={{ margin: 0 }}>⚠️ Page Error Caught</h3>
+          <p style={{ fontFamily: 'monospace', fontSize: '0.85rem', marginTop: 8 }}>{this.state.error?.toString()}</p>
+          <button
+            onClick={() => this.setState({ hasError: false, error: null })}
+            style={{ padding: '6px 14px', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--border)', color: '#fff', borderRadius: 6, cursor: 'pointer', marginTop: 10 }}
+          >
+            🔄 Reload Page
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 export default function App() {
   const [activePage, setActivePage]     = useState('dashboard')
@@ -38,7 +70,7 @@ export default function App() {
 
         if (ct && audioRef.current) {
           audioRef.current.loadTheme(ct)
-          audioRef.current.setVolume(s.volume ?? 0.7)
+          audioRef.current.setVolume(s?.volume ?? 0.7)
         }
       } catch (err) {
         console.error('[SoundKeys] Failed to load settings/themes:', err)
@@ -141,37 +173,45 @@ export default function App() {
         <Sidebar activePage={activePage} onNavigate={setActivePage} />
 
         <main className="content">
-          {activePage === 'dashboard' && (
-            <Dashboard
-              settings={settings}
-              currentTheme={currentTheme}
-              lastKeyEvent={lastKeyEvent}
-              onSettingChange={handleSettingChange}
-            />
-          )}
-          {activePage === 'analytics' && (
-            <Analytics />
-          )}
-          {activePage === 'settings' && (
-            <Settings
-              settings={settings}
-              themes={themes}
-              currentTheme={currentTheme}
-              onSettingChange={handleSettingChange}
-              onThemeSwitch={handleThemeSwitch}
-              onThemesUpdated={(newThemes) => {
-                setThemes(newThemes)
-                window.soundkeys?.getCurrentTheme().then(ct => {
-                  if (ct) {
-                    setCurrentTheme(ct)
-                    audioRef.current?.loadTheme(ct)
+          <ErrorBoundary key={activePage}>
+            {activePage === 'dashboard' && (
+              <Dashboard
+                settings={settings}
+                currentTheme={currentTheme}
+                lastKeyEvent={lastKeyEvent}
+                onSettingChange={handleSettingChange}
+              />
+            )}
+            {activePage === 'typing-test' && (
+              <TypingTest />
+            )}
+            {activePage === 'analytics' && (
+              <Analytics />
+            )}
+            {activePage === 'settings' && (
+              <Settings
+                settings={settings}
+                themes={themes}
+                currentTheme={currentTheme}
+                onSettingChange={handleSettingChange}
+                onThemeSwitch={handleThemeSwitch}
+                onThemesUpdated={(newThemes) => {
+                  setThemes(newThemes)
+                  if (typeof window.soundkeys?.getCurrentTheme === 'function') {
+                    window.soundkeys.getCurrentTheme().then(ct => {
+                      if (ct) {
+                        setCurrentTheme(ct)
+                        audioRef.current?.loadTheme(ct)
+                      }
+                    })
                   }
-                })
-              }}
-            />
-          )}
+                }}
+              />
+            )}
+          </ErrorBoundary>
         </main>
       </div>
     </div>
   )
 }
+

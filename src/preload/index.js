@@ -33,6 +33,28 @@ contextBridge.exposeInMainWorld('soundkeys', {
   selectDataDir:       ()      => ipcRenderer.invoke('datadir:select'),
   changeDataDir:       (path)  => ipcRenderer.invoke('datadir:change', path),
 
+  // ── Gemini AI ────────────────────────────────────────────────────────
+  geminiSetKey:      (key)  => ipcRenderer.invoke('gemini:set-key', key),
+  geminiGetKey:      ()     => ipcRenderer.invoke('gemini:get-key'),
+  geminiValidateKey: (key)  => ipcRenderer.invoke('gemini:validate-key', key),
+  geminiGenerate:    (opts) => ipcRenderer.invoke('gemini:generate', opts),
+
+  // ── Typing Paragraphs Library ────────────────────────────────────────
+  getParagraphs:      ()       => ipcRenderer.invoke('typing:get-paragraphs'),
+  saveParagraph:      (data)   => ipcRenderer.invoke('typing:save-paragraph', data),
+  deleteParagraph:    (id)     => ipcRenderer.invoke('typing:delete-paragraph', id),
+  useParagraph:       (id)     => ipcRenderer.invoke('typing:use-paragraph', id),
+  exportParagraphs:   ()       => ipcRenderer.invoke('typing:export-paragraphs'),
+  importParagraphs:   ()       => ipcRenderer.invoke('typing:import-paragraphs'),
+
+  // ── Typing Sessions (Analytics) ──────────────────────────────────────
+  logTypingSession:     (data)  => ipcRenderer.invoke('typing:log-session', data),
+  getTypingSessions:    (limit) => ipcRenderer.invoke('typing:get-sessions', limit),
+  getTypingPersonalBest:()      => ipcRenderer.invoke('typing:get-best'),
+  getTypingStats:       ()      => ipcRenderer.invoke('typing:get-stats'),
+  getTypingTrend:       (limit) => ipcRenderer.invoke('typing:get-trend', limit),
+  getTypingByDifficulty:()      => ipcRenderer.invoke('typing:get-by-diff'),
+
   // ── Window Controls ──────────────────────────────────────────────────
   minimize: () => ipcRenderer.send('window:minimize'),
   close:    () => ipcRenderer.send('window:close'),
