@@ -1050,8 +1050,24 @@ function setupIPC() {
     if (!targetDir) return { success: false, dataDir }
     const normTarget = path.normalize(targetDir)
     const normCurrent = path.normalize(dataDir)
+
+    // Check if target is equal to current
     if (normTarget.toLowerCase() === normCurrent.toLowerCase()) {
-      return { success: true, dataDir: normTarget, oldDir: dataDir, hasRemainingFiles: false }
+      // Force relaunch even if resetting to same location so app refreshes cleanly
+      app.isQuitting = true
+      app.relaunch()
+      setTimeout(() => app.quit(), 300)
+      return { success: true, dataDir: normTarget, oldDir: dataDir, hasRemainingFiles: false, relaunching: true }
+    }
+
+    // Prevent selecting a subdirectory inside the current data directory to avoid infinite recursion
+    const rel = path.relative(normCurrent, normTarget)
+    if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
+      return {
+        success: false,
+        dataDir,
+        error: 'Cannot select a subdirectory inside the current data folder as target location.'
+      }
     }
 
     try {
@@ -1081,6 +1097,7 @@ function setupIPC() {
       return { success: false, dataDir, error: err.message }
     }
   })
+
 
   // Window Controls
   ipcMain.on('window:minimize', () => mainWindow?.minimize())

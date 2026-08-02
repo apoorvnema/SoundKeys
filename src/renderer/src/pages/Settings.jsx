@@ -215,28 +215,31 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
         alert(`Data directory moved to:\n${res.dataDir}\n\nSoundKeys will now restart. Note: Leftover non-SoundKeys files in "${res.oldDir}" may be manually deleted if desired.`)
       }
     } else {
-      setStatusMsg('Failed to move data directory.')
-      setTimeout(() => setStatusMsg(''), 4000)
+      const errMsg = res?.error || 'Failed to move data directory.'
+      setStatusMsg(errMsg)
+      alert(`Data Directory Error:\n${errMsg}`)
+      setTimeout(() => setStatusMsg(''), 4500)
     }
   }
 
   const handleResetToDefaultDir = async () => {
-    if (!defaultDataDir) return
-    if (confirm(`Reset data directory back to default location?\n${defaultDataDir}\n\nSoundKeys will restart automatically to apply changes.`)) {
+    const targetDir = defaultDataDir || (await window.soundkeys?.getDefaultDataDir())
+    if (!targetDir) return
+    if (confirm(`Reset data directory back to default location?\n${targetDir}\n\nSoundKeys will restart automatically to apply changes.`)) {
       setStatusMsg('Restoring default directory & restarting SoundKeys...')
-      const res = await window.soundkeys?.changeDataDir(defaultDataDir)
+      const res = await window.soundkeys?.changeDataDir(targetDir)
       if (res?.success) {
         if (res.hasRemainingFiles && res.oldDir) {
           alert(`Data directory restored to default location!\n\nSoundKeys will now restart. Note: Leftover non-SoundKeys files in "${res.oldDir}" may be manually deleted if desired.`)
         }
       } else {
-        setStatusMsg('Failed to restore default directory.')
-        setTimeout(() => setStatusMsg(''), 4000)
+        const errMsg = res?.error || 'Failed to restore default directory.'
+        setStatusMsg(errMsg)
+        alert(`Data Directory Error:\n${errMsg}`)
+        setTimeout(() => setStatusMsg(''), 4500)
       }
     }
   }
-
-
 
   const handlePurge = async () => {
     const beforeDateStr = new Date(Date.now() - purgeDays * 86400000).toISOString()
@@ -553,7 +556,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
             </div>
             <div>
               <div className="about-name">SoundKeys</div>
-              <div className="about-version">v1.2.0 · Created by Apoorv Nema</div>
+              <div className="about-version">v1.2.1 · Created by Apoorv Nema</div>
               <div className="about-tagline">Tactile audio feedback and sound effects for every keypress on Windows</div>
             </div>
           </div>

@@ -49,16 +49,16 @@ jobs:
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || 'v1.2.0' }}
-          name: "SoundKeys ${{ github.ref_name || 'v1.2.0' }} Release"
+          tag_name: ${{ github.ref_name || 'v1.2.1' }}
+          name: "SoundKeys ${{ github.ref_name || 'v1.2.1' }} Release"
           body: |
-            ## SoundKeys v1.2.0 Release
+            ## SoundKeys v1.2.1 Release
             
             Tactile audio feedback, analytics engine, and customizable sound themes for every keypress on Windows.
             
             ### Included Executables:
-            - **SoundKeys-1.2.0-portable.exe** (Standalone portable executable, no install required)
-            - **SoundKeys Setup 1.2.0.exe** (Windows NSIS Installer)
+            - **SoundKeys-1.2.1-portable.exe** (Standalone portable executable, no install required)
+            - **SoundKeys Setup 1.2.1.exe** (Windows NSIS Installer)
           files: |
             release/*.exe
         env:
