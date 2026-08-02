@@ -10,7 +10,7 @@ Welcome to **SoundKeys**! This document serves as the authoritative guide for AI
 > 2. **VERSION SYNCHRONIZATION**:
 >    - **Major Changes**: Increment the major version number (`X.0.0`).
 >    - **Minor / Subversion Changes**: Increment the minor version number (`1.X.0`).
->    - **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `1.1.0`).
+>    - **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `1.2.0`).
 
 ---
 
@@ -18,7 +18,7 @@ Welcome to **SoundKeys**! This document serves as the authoritative guide for AI
 
 **SoundKeys** is a feature-rich, high-performance Windows desktop application that plays tactile, customizable audio feedback on system-wide keyboard (and optional mouse) events.
 
-- **Stack**: Electron + React + Vite + Howler.js + uiohook-napi
+- **Stack**: Electron + React + Vite + Howler.js + uiohook-napi + sql.js + Recharts
 - **Aesthetic**: Premium dark neon / glassmorphism UI with vibrant real-time visualizers and smooth micro-animations.
 - **Author**: Apoorv Nema
 
@@ -32,10 +32,13 @@ SoundKeys/
 ├── package.json                 ← Node dependencies & scripts
 ├── electron.vite.config.mjs     ← Vite + Electron build setup
 ├── electron-builder.json5       ← Portable & NSIS packaging rules
+├── scripts/
+│   └── create-cert.ps1          ← Self-signed code signing certificate generator
 │
 ├── src/
 │   ├── main/
-│   │   └── index.js             ← Electron main process (tray, IPC, keyhook, window management)
+│   │   ├── index.js             ← Electron main process (tray, IPC, keyhook, window management)
+│   │   └── analytics.js         ← SQLite Analytics Engine (sql.js WASM)
 │   ├── preload/
 │   │   └── index.js             ← ContextBridge IPC wrapper (window.soundkeys)
 │   └── renderer/                ← React 18 UI
@@ -45,15 +48,16 @@ SoundKeys/
 │           ├── components/
 │           │   ├── AudioEngine.jsx  ← Howler.js low-latency audio player
 │           │   ├── Sidebar.jsx      ← Navigation panel
-│           │   └── ThemeCreatorModal.jsx ← Custom theme creator/importer
+│           │   └── ThemeCreatorModal.jsx ← Custom theme creator/editor
 │           ├── pages/
 │           │   ├── Dashboard.jsx    ← Orb visualizer & live keypress stats
-│           │   └── Settings.jsx     ← Preferences, theme manager, system toggles
+│           │   ├── Analytics.jsx    ← SQLite analytics tab & interactive charts
+│           │   └── Settings.jsx     ← Preferences, theme manager, data dir, system toggles
 │           └── styles/
 │               └── index.css        ← Design system tokens & styles
 │
 └── sounds/
-    └── themes/                  ← Sound pack playlists (WAV files + theme.json)
+    └── themes/                  ← Default sound pack playlists (copied to user dataDir)
         ├── default/             ← SoundKeys Classic
         └── ...
 ```
@@ -81,6 +85,17 @@ SoundKeys/
 | **FEAT-015** | Taskbar Overlay Badge | Green/Red dot badge on Windows taskbar icon reflects mute state in real-time | ✅ Operational | v1.1.0 |
 | **FEAT-016** | Tray Quick Settings | Right-click tray shows Start with Windows toggle & Dynamic Status Icon toggle | ✅ Operational | v1.1.0 |
 | **FEAT-017** | GitHub Actions Pipeline | CI/CD pipeline (`.github/workflows/build.yml`) builds & publishes Windows portable and setup binaries to GitHub Releases on push to master | ✅ Operational | v1.1.0 |
+| **FEAT-018** | Unified Data Directory | Single customizable directory storing settings, sound themes, and analytics DB. Relocate anytime via Settings. | ✅ Operational | v1.2.0 |
+| **FEAT-019** | SQLite Analytics Engine | WASM SQLite database (`sql.js`) logging keypresses, hourly activity, daily trends, and letter frequencies | ✅ Operational | v1.2.0 |
+| **FEAT-020** | Analytics Dashboard & Charts | Interactive Recharts dashboard with Today Hourly bar chart, 30-Day Trend line chart, and A-Z Key Heatmap grid | ✅ Operational | v1.2.0 |
+| **FEAT-021** | Analytics Export & Purge | CSV data export tool and configurable MB limit with date-range purge controls | ✅ Operational | v1.2.0 |
+| **FEAT-022** | Accurate Key Name Display | Display exact key names (A, B, Enter, Space, F1, etc.) on Dashboard instead of generic category labels | ✅ Operational | v1.2.0 |
+| **FEAT-023** | WPM Audit & Session Reset | Refined WPM calculation (typing keys only) + session counter reset button + seeded today count from SQLite DB | ✅ Operational | v1.2.0 |
+| **FEAT-024** | Playlist Edit & Delete | Edit custom theme configs/sounds and delete custom themes directly from Settings | ✅ Operational | v1.2.0 |
+| **FEAT-025** | Multi-Sound Typing Pool | Dynamic typing sound slots in theme creator allowing random sound selection per keypress (OperaGX style) | ✅ Operational | v1.2.0 |
+| **FEAT-026** | CI Native Rebuild & Signing | GitHub Actions workflow includes `electron-rebuild` step to prevent silent crashes and supports `CSC_LINK` code signing | ✅ Operational | v1.2.0 |
+| **FEAT-027** | Directory Reset & Fallback | Reset Data Directory to default location (%APPDATA%) + auto-fallback to default if custom directory is deleted | ✅ Operational | v1.2.0 |
+
 
 ---
 
@@ -98,4 +113,5 @@ SoundKeys/
 4. **Feature Registry Updates**:
    Before completing any task, update the **Feature Registry** table above in `AGENTS.md`.
 5. **Version Synchronization**:
-   For every major change update the major version (`X.0.0`) and for minor changes update subversion (`1.X.0`). Ensure matching versions in `package.json`, `Sidebar.jsx`, `Settings.jsx`, `.github/workflows/build.yml`, and `AGENTS.md` (Current version: `1.1.0`).
+   For every major change update the major version (`X.0.0`) and for minor changes update subversion (`1.X.0`). Ensure matching versions in `package.json`, `Sidebar.jsx`, `Settings.jsx`, `.github/workflows/build.yml`, and `AGENTS.md` (Current version: `1.2.0`).
+

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import ThemeCreatorModal from '../components/ThemeCreatorModal'
 
 // ── Sub-components ──────────────────────────────────────────────────────────
@@ -41,33 +41,56 @@ function Toggle({ value, onChange, disabled = false }) {
   )
 }
 
-function ThemeCard({ theme, isActive, onSelect }) {
+function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete }) {
   const wavCount = Object.values(theme).filter(
     v => typeof v === 'string' && v.toLowerCase().endsWith('.wav')
   ).length + (Array.isArray(theme.typing) ? theme.typing.length - 1 : 0)
 
+  const isDefault = theme.id === 'default'
+
   return (
-    <button
-      className={`theme-card ${isActive ? 'active' : ''}`}
-      onClick={() => onSelect(theme.id)}
-    >
-      <div className="theme-card-emoji">🎵</div>
-      <div className="theme-card-body">
-        <div className="theme-card-name">{theme.name || theme.id}</div>
-        <div className="theme-card-meta">
-          {wavCount} sound{wavCount !== 1 ? 's' : ''}
-          {theme.author ? ` · By ${theme.author}` : ''}
-          {theme.description ? ` · ${theme.description}` : ''}
+    <div className={`theme-card ${isActive ? 'active' : ''}`}>
+      <div className="theme-card-main" onClick={() => onSelect(theme.id)}>
+        <div className="theme-card-emoji">🎵</div>
+        <div className="theme-card-body">
+          <div className="theme-card-name-row">
+            <span className="theme-card-name">{theme.name || theme.id}</span>
+            {isDefault && <span className="builtin-badge">Built-in</span>}
+          </div>
+          <div className="theme-card-meta">
+            {wavCount} sound{wavCount !== 1 ? 's' : ''}
+            {theme.author ? ` · By ${theme.author}` : ''}
+            {theme.description ? ` · ${theme.description}` : ''}
+          </div>
         </div>
+        {isActive && (
+          <div className="theme-card-check">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        )}
       </div>
-      {isActive && (
-        <div className="theme-card-check">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-            <path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+
+      {!isDefault && (
+        <div className="theme-card-actions">
+          <button
+            className="btn-theme-action"
+            onClick={(e) => { e.stopPropagation(); onEdit(theme) }}
+            title="Edit theme config & sounds"
+          >
+            ✏️ Edit
+          </button>
+          <button
+            className="btn-theme-action danger"
+            onClick={(e) => { e.stopPropagation(); onDelete(theme) }}
+            title="Delete custom theme"
+          >
+            🗑️ Delete
+          </button>
         </div>
       )}
-    </button>
+    </div>
   )
 }
 
@@ -128,20 +151,139 @@ function HotkeyRecorder({ currentHotkey, onChange }) {
 export default function Settings({ settings, themes, currentTheme, onSettingChange, onThemeSwitch, onThemesUpdated }) {
   const [volLocal, setVolLocal] = useState(settings?.volume ?? 0.7)
   const [isCreatorOpen, setIsCreatorOpen] = useState(false)
+  const [editingTheme, setEditingTheme] = useState(null)
+
+  // Data & Storage states
+  const [dbSize, setDbSize]               = useState('0.00')
+  const [dataDir, setDataDir]             = useState('')
+  const [defaultDataDir, setDefaultDataDir] = useState('')
+  const [dataLimit, setDataLimit]         = useState(100)
+  const [purgeDays, setPurgeDays]         = useState(30)
+  const [statusMsg, setStatusMsg]         = useState('')
+
+  const loadDataStorageMeta = useCallback(async () => {
+    if (!window.soundkeys) return
+    try {
+      const [sz, dir, defDir, setts] = await Promise.all([
+        window.soundkeys.getAnalyticsDbSize(),
+        window.soundkeys.getDataDir(),
+        window.soundkeys.getDefaultDataDir(),
+        window.soundkeys.getSettings()
+      ])
+      if (sz) setDbSize(sz)
+      if (dir) setDataDir(dir)
+      if (defDir) setDefaultDataDir(defDir)
+      if (setts?.dataLimitMb) setDataLimit(setts.dataLimitMb)
+    } catch (_) {}
+  }, [])
+
+  useEffect(() => {
+    loadDataStorageMeta()
+  }, [loadDataStorageMeta])
 
   const handleVolume = useCallback((v) => {
     setVolLocal(v)
     onSettingChange('volume', v)
   }, [onSettingChange])
 
+  const handleEditTheme = (theme) => {
+    setEditingTheme(theme)
+    setIsCreatorOpen(true)
+  }
+
+  const handleDeleteTheme = async (theme) => {
+    if (confirm(`Are you sure you want to delete custom theme "${theme.name || theme.id}"?`)) {
+      const res = await window.soundkeys?.deleteTheme(theme.id)
+      if (res?.themes) {
+        onThemesUpdated(res.themes)
+      }
+    }
+  }
+
+  const handleModalClose = () => {
+    setIsCreatorOpen(false)
+    setEditingTheme(null)
+  }
+
+  const handleChangeDataDir = async () => {
+    const selected = await window.soundkeys?.selectDataDir()
+    if (!selected) return
+    setStatusMsg('Migrating data & restarting SoundKeys...')
+    const res = await window.soundkeys?.changeDataDir(selected)
+    if (res?.success) {
+      if (res.hasRemainingFiles && res.oldDir) {
+        alert(`Data directory moved to:\n${res.dataDir}\n\nSoundKeys will now restart. Note: Leftover non-SoundKeys files in "${res.oldDir}" may be manually deleted if desired.`)
+      }
+    } else {
+      setStatusMsg('Failed to move data directory.')
+      setTimeout(() => setStatusMsg(''), 4000)
+    }
+  }
+
+  const handleResetToDefaultDir = async () => {
+    if (!defaultDataDir) return
+    if (confirm(`Reset data directory back to default location?\n${defaultDataDir}\n\nSoundKeys will restart automatically to apply changes.`)) {
+      setStatusMsg('Restoring default directory & restarting SoundKeys...')
+      const res = await window.soundkeys?.changeDataDir(defaultDataDir)
+      if (res?.success) {
+        if (res.hasRemainingFiles && res.oldDir) {
+          alert(`Data directory restored to default location!\n\nSoundKeys will now restart. Note: Leftover non-SoundKeys files in "${res.oldDir}" may be manually deleted if desired.`)
+        }
+      } else {
+        setStatusMsg('Failed to restore default directory.')
+        setTimeout(() => setStatusMsg(''), 4000)
+      }
+    }
+  }
+
+
+
+  const handlePurge = async () => {
+    const beforeDateStr = new Date(Date.now() - purgeDays * 86400000).toISOString()
+    if (confirm(`Are you sure you want to purge all analytics data older than ${purgeDays} days?`)) {
+      await window.soundkeys?.purgeAnalyticsData(beforeDateStr)
+      setStatusMsg(`Purged data older than ${purgeDays} days.`)
+      loadDataStorageMeta()
+      setTimeout(() => setStatusMsg(''), 4000)
+    }
+  }
+
+  const handleExportCSV = async () => {
+    const success = await window.soundkeys?.exportAnalyticsCSV()
+    if (success) {
+      setStatusMsg('Analytics data exported successfully!')
+    } else {
+      setStatusMsg('Export cancelled or failed.')
+    }
+    setTimeout(() => setStatusMsg(''), 4000)
+  }
+
+  const handleSaveDataLimit = async (limit) => {
+    setDataLimit(limit)
+    onSettingChange('dataLimitMb', limit)
+  }
+
+  const normalizePathStr = (p) => (p || '').toLowerCase().replace(/[/\\]+/g, '/').replace(/\/+$/, '')
+  const isCustomDir = Boolean(
+    dataDir && defaultDataDir &&
+    normalizePathStr(dataDir) !== normalizePathStr(defaultDataDir)
+  )
+
+
   return (
     <div className="page settings-page">
       <div className="page-header">
         <div className="page-header-left">
           <h1 className="page-title">Settings</h1>
-          <p className="page-subtitle">Customise your SoundKeys experience & audio themes</p>
+          <p className="page-subtitle">Customise your SoundKeys audio, system options, and data storage</p>
         </div>
       </div>
+
+      {statusMsg && (
+        <div className="status-toast-banner margin-bottom-md">
+          {statusMsg}
+        </div>
+      )}
 
       <div className="settings-content">
 
@@ -205,14 +347,14 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
 
             <button
               className="btn-primary-sm"
-              onClick={() => setIsCreatorOpen(true)}
+              onClick={() => { setEditingTheme(null); setIsCreatorOpen(true) }}
             >
               + Create Sound Theme
             </button>
           </div>
 
           <p className="section-desc">
-            Select an audio playlist theme below or create your own custom theme mapping WAV audio files to key presses.
+            Select an audio playlist theme below or create/edit custom themes mapping audio files to key presses.
           </p>
 
           <div className="theme-grid">
@@ -223,11 +365,110 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
                   theme={theme}
                   isActive={currentTheme?.id === theme.id}
                   onSelect={onThemeSwitch}
+                  onEdit={handleEditTheme}
+                  onDelete={handleDeleteTheme}
                 />
               ))
             ) : (
               <div className="empty-state">No themes found</div>
             )}
+          </div>
+        </section>
+
+        {/* ── Data & Storage Management ────────────────────── */}
+        <section className="settings-section">
+          <h2 className="section-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Data & Storage Management
+          </h2>
+
+          <div className="settings-row flex-col items-start">
+            <div className="settings-row-info full-width">
+              <span className="settings-row-label">Unified Data Directory</span>
+              <span className="settings-row-desc">SoundKeys keeps settings, custom sound packs, and analytics database together in one folder.</span>
+            </div>
+            <div className="path-display-row full-width margin-top-xs">
+              <input
+                type="text"
+                className="path-input"
+                value={dataDir}
+                readOnly
+              />
+              <button className="btn-secondary" onClick={handleChangeDataDir}>
+                Move Directory…
+              </button>
+              {isCustomDir && (
+                <button className="btn-secondary" onClick={handleResetToDefaultDir} title="Reset to default AppData directory">
+                  Reset to Default
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label">Database File Size</span>
+              <span className="settings-row-desc">Current size of local SQLite analytics DB</span>
+            </div>
+            <div className="settings-row-control">
+              <span className="meta-value text-neon-blue font-bold">{dbSize} MB</span>
+            </div>
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label">Maximum Storage Limit</span>
+              <span className="settings-row-desc">Auto-purges data older than 30 days when exceeded</span>
+            </div>
+            <div className="settings-row-control">
+              <div className="limit-input-group">
+                <input
+                  type="number"
+                  className="number-input"
+                  value={dataLimit}
+                  onChange={e => handleSaveDataLimit(parseInt(e.target.value) || 100)}
+                  min="10"
+                  max="5000"
+                />
+                <span className="input-unit">MB</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label">Export Keystroke Log</span>
+              <span className="settings-row-desc">Export analytics data to a CSV spreadsheet file</span>
+            </div>
+            <div className="settings-row-control">
+              <button className="btn-secondary-sm" onClick={handleExportCSV}>
+                📥 Export CSV
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-row danger-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label danger">Purge Historical Data</span>
+              <span className="settings-row-desc">Delete key logs older than threshold (daily totals preserved)</span>
+            </div>
+            <div className="settings-row-control gap-sm">
+              <select
+                className="select-input-sm"
+                value={purgeDays}
+                onChange={e => setPurgeDays(parseInt(e.target.value))}
+              >
+                <option value={7}>7 Days</option>
+                <option value={30}>30 Days</option>
+                <option value={90}>90 Days</option>
+                <option value={365}>1 Year</option>
+              </select>
+              <button className="btn-danger-sm" onClick={handlePurge}>
+                Purge Data
+              </button>
+            </div>
           </div>
         </section>
 
@@ -312,7 +553,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
             </div>
             <div>
               <div className="about-name">SoundKeys</div>
-              <div className="about-version">v1.1.0 · Created by Apoorv Nema</div>
+              <div className="about-version">v1.2.0 · Created by Apoorv Nema</div>
               <div className="about-tagline">Tactile audio feedback and sound effects for every keypress on Windows</div>
             </div>
           </div>
@@ -320,10 +561,11 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
 
       </div>
 
-      {/* Custom Theme Creator Modal */}
+      {/* Custom Theme Creator / Editor Modal */}
       <ThemeCreatorModal
         isOpen={isCreatorOpen}
-        onClose={() => setIsCreatorOpen(false)}
+        editingTheme={editingTheme}
+        onClose={handleModalClose}
         onCreated={(updatedList) => {
           if (onThemesUpdated) onThemesUpdated(updatedList)
         }}

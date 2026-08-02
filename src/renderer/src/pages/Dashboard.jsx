@@ -10,30 +10,54 @@ const SOUND_LABELS = {
   functionKeys:'Fn Key'
 }
 
-/** Track keypress count + WPM in the last 60 seconds */
+/** Track keypress count + WPM in the last 60 seconds (typing keys only) */
 function useKeyStats(lastKeyEvent) {
   const [total, setTotal] = useState(0)
   const [wpm, setWpm]     = useState(0)
   const timestamps = useRef([])
 
+  // Seed total count on mount from today's analytics DB total
+  useEffect(() => {
+    async function seedToday() {
+      if (window.soundkeys) {
+        try {
+          const sum = await window.soundkeys.getAnalyticsSummary()
+          if (sum?.todayKeys !== undefined) {
+            setTotal(sum.todayKeys)
+          }
+        } catch (_) {}
+      }
+    }
+    seedToday()
+  }, [])
+
   useEffect(() => {
     if (!lastKeyEvent) return
     setTotal(n => n + 1)
 
+    // WPM calculation — only count typing keypresses in rolling 60s window
     const now = Date.now()
-    timestamps.current.push(now)
+    if (lastKeyEvent.soundType === 'typing' || lastKeyEvent.soundType === 'spacebar') {
+      timestamps.current.push(now)
+    }
     timestamps.current = timestamps.current.filter(t => now - t < 60_000)
     setWpm(Math.round(timestamps.current.length / 5))
   }, [lastKeyEvent])
 
-  return { total, wpm }
+  const resetSession = useCallback(() => {
+    setTotal(0)
+    setWpm(0)
+    timestamps.current = []
+  }, [])
+
+  return { total, wpm, resetSession }
 }
 
 export default function Dashboard({ settings, currentTheme, lastKeyEvent, onSettingChange }) {
   const [pulsing, setPulsing]   = useState(false)
   const [ripples, setRipples]   = useState([])
   const rippleId = useRef(0)
-  const { total, wpm } = useKeyStats(lastKeyEvent)
+  const { total, wpm, resetSession } = useKeyStats(lastKeyEvent)
 
   // Animate orb on each key event
   useEffect(() => {
@@ -129,7 +153,7 @@ export default function Dashboard({ settings, currentTheme, lastKeyEvent, onSett
             <span className="status-text muted">Sound is muted — click to unmute</span>
           ) : lastKeyEvent ? (
             <span className="status-text active">
-              {SOUND_LABELS[lastKeyEvent.soundType] || 'Key'} pressed
+              Key <strong className="highlight-key">{lastKeyEvent.keyName || SOUND_LABELS[lastKeyEvent.soundType] || 'Key'}</strong> pressed
             </span>
           ) : (
             <span className="status-text idle">Press any key to hear sounds…</span>
@@ -138,20 +162,27 @@ export default function Dashboard({ settings, currentTheme, lastKeyEvent, onSett
       </div>
 
       {/* ── Stats Bar ─────────────────────────────────── */}
+      <div className="stats-bar-header">
+        <span className="stats-bar-title">Today's Session Stats</span>
+        <button className="reset-session-btn" onClick={resetSession} title="Reset in-memory counter for this session">
+          🔄 Reset Counter
+        </button>
+      </div>
+
       <div className="stats-bar">
-        <div className="stat-item">
+        <div className="stat-item" title="Total keystrokes recorded today (persisted in SQLite DB)">
           <div className="stat-value">{total.toLocaleString()}</div>
-          <div className="stat-label">Keys Pressed</div>
+          <div className="stat-label">Keys Today</div>
         </div>
         <div className="stat-divider" />
-        <div className="stat-item">
+        <div className="stat-item" title="Words Per Minute calculated over rolling 60-second typing window">
           <div className="stat-value">{wpm}</div>
-          <div className="stat-label">WPM</div>
+          <div className="stat-label">WPM (60s)</div>
         </div>
         <div className="stat-divider" />
-        <div className="stat-item">
-          <div className="stat-value">
-            {lastKeyEvent ? (SOUND_LABELS[lastKeyEvent.soundType] || '—') : '—'}
+        <div className="stat-item" title="Exact key pressed">
+          <div className="stat-value highlight-key-name">
+            {lastKeyEvent ? (lastKeyEvent.keyName || SOUND_LABELS[lastKeyEvent.soundType] || '—') : '—'}
           </div>
           <div className="stat-label">Last Key</div>
         </div>
