@@ -161,19 +161,27 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
   const [purgeDays, setPurgeDays]         = useState(30)
   const [statusMsg, setStatusMsg]         = useState('')
 
+  // Gemini API Key states
+  const [geminiKey, setGeminiKey]         = useState('')
+  const [geminiKeyIsSet, setGeminiKeyIsSet] = useState(false)
+  const [showGeminiKey, setShowGeminiKey] = useState(false)
+  const [geminiStatus, setGeminiStatus]   = useState('')
+
   const loadDataStorageMeta = useCallback(async () => {
     if (!window.soundkeys) return
     try {
-      const [sz, dir, defDir, setts] = await Promise.all([
+      const [sz, dir, defDir, setts, keyStatus] = await Promise.all([
         window.soundkeys.getAnalyticsDbSize(),
         window.soundkeys.getDataDir(),
         window.soundkeys.getDefaultDataDir(),
-        window.soundkeys.getSettings()
+        window.soundkeys.getSettings(),
+        window.soundkeys.geminiGetKey()
       ])
       if (sz) setDbSize(sz)
       if (dir) setDataDir(dir)
       if (defDir) setDefaultDataDir(defDir)
       if (setts?.dataLimitMb) setDataLimit(setts.dataLimitMb)
+      if (keyStatus) setGeminiKeyIsSet(keyStatus.isSet)
     } catch (_) {}
   }, [])
 
@@ -258,8 +266,60 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
     } else {
       setStatusMsg('Export cancelled or failed.')
     }
-    setTimeout(() => setStatusMsg(''), 4000)
   }
+
+  const handleValidateGeminiKey = async (customKeyToTest) => {
+    setGeminiStatus('⌛ Validating API key with Gemini...')
+    const res = await window.soundkeys?.geminiValidateKey(customKeyToTest || (geminiKey.trim() || null))
+    if (res?.valid) {
+      if (res?.quotaExceeded || res?.warning) {
+        setGeminiStatus(`⚠️ Key is valid! (${res.warning || 'Free tier quota temporarily reached'})`)
+      } else {
+        setGeminiStatus('✅ API Key is valid and working!')
+      }
+    } else {
+      setGeminiStatus(`❌ Validation error: ${res?.error || 'Failed to validate key'}`)
+    }
+  }
+
+  const handleSaveGeminiKey = async () => {
+    const keyToSave = geminiKey.trim()
+    if (!keyToSave) return
+    setGeminiStatus('⌛ Saving & validating key...')
+
+    // Save key to store
+    const res = await window.soundkeys?.geminiSetKey(keyToSave)
+    if (res?.success) {
+      setGeminiKeyIsSet(true)
+      setGeminiKey('')
+      setShowGeminiKey(false)
+
+      // Test key validation
+      const valRes = await window.soundkeys?.geminiValidateKey(keyToSave)
+      if (valRes?.valid) {
+        if (valRes.quotaExceeded) {
+          setGeminiStatus('✅ Key saved! (Note: Gemini Free Tier quota temporarily reached)')
+        } else {
+          setGeminiStatus('✅ Key saved and verified successfully!')
+        }
+      } else {
+        setGeminiStatus(`⚠️ Key saved, but Google API returned: ${valRes?.error || 'Validation warning'}`)
+      }
+      setTimeout(() => setGeminiStatus(''), 5000)
+    }
+  }
+
+
+  const handleClearGeminiKey = async () => {
+    if (confirm('Clear the Gemini API key? AI generation will be unavailable until a key is added again.')) {
+      await window.soundkeys?.geminiSetKey('')
+      setGeminiKeyIsSet(false)
+      setGeminiKey('')
+      setGeminiStatus('🗑️ API key cleared.')
+      setTimeout(() => setGeminiStatus(''), 3000)
+    }
+  }
+
 
   const handleSaveDataLimit = async (limit) => {
     setDataLimit(limit)
@@ -556,9 +616,99 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
             </div>
             <div>
               <div className="about-name">SoundKeys</div>
-              <div className="about-version">v1.2.1 · Created by Apoorv Nema</div>
+              <div className="about-version">v2.0.0 · Created by Apoorv Nema</div>
               <div className="about-tagline">Tactile audio feedback and sound effects for every keypress on Windows</div>
             </div>
+          </div>
+        </section>
+
+        {/* ── AI & Typing Test ─────────────────────────────────────────────── */}
+        <section className="settings-section">
+          <div className="section-header">
+            <div className="section-title">✨ AI &amp; Typing Test</div>
+            <div className="section-subtitle">Configure Gemini AI for paragraph generation in Typing Test</div>
+          </div>
+
+          <div className="settings-card">
+            <div className="setting-row">
+              <div className="setting-info">
+                <div className="setting-label">Gemini API Key</div>
+                <div className="setting-desc">
+                  Used to generate typing test paragraphs. Stored securely — never exposed to the UI or bundled.
+                  {' '}<a href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-light)' }}>Get a free key →</a>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.84rem', fontWeight: 500 }}>
+                  {geminiKeyIsSet
+                    ? <span style={{ color: '#4ade80' }}>✅ API Key Configured &amp; Active</span>
+                    : <span style={{ color: 'var(--t2)' }}>⚠️ No API Key (Offline Mode — built-in paragraphs active)</span>
+                  }
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <input
+                    type={showGeminiKey ? 'text' : 'password'}
+                    value={geminiKey}
+                    onChange={e => setGeminiKey(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSaveGeminiKey()}
+                    placeholder={geminiKeyIsSet ? '••••••••••••••••••••••••••••••••••••••••' : 'Paste your Gemini API key (AIzaSy...)'}
+                    className="data-dir-input"
+                    style={{ width: '100%', paddingRight: 45, boxSizing: 'border-box' }}
+                    autoComplete="off"
+                  />
+                  <button
+                    onClick={() => setShowGeminiKey(v => !v)}
+                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--t2)', cursor: 'pointer', fontSize: '0.9rem' }}
+                    title={showGeminiKey ? 'Hide key' : 'Show key'}
+                  >
+                    {showGeminiKey ? '🙈' : '👁️'}
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <button
+                    className="btn-primary"
+                    onClick={handleSaveGeminiKey}
+                    disabled={!geminiKey.trim()}
+                  >
+                    💾 Validate &amp; Save Key
+                  </button>
+                  {geminiKeyIsSet && (
+                    <>
+                      <button
+                        className="typing-source-btn ai-btn"
+                        onClick={() => handleValidateGeminiKey()}
+                      >
+                        🧪 Test Key
+                      </button>
+                      <button className="btn-danger" onClick={handleClearGeminiKey}>
+                        🗑️ Clear Key
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {geminiStatus && (
+                <div style={{
+                  fontSize: '0.82rem',
+                  padding: '8px 12px',
+                  borderRadius: 6,
+                  background: geminiStatus.startsWith('✅') ? 'rgba(34,197,94,0.1)' : geminiStatus.startsWith('⌛') ? 'rgba(59,130,246,0.1)' : 'rgba(239,68,68,0.1)',
+                  color: geminiStatus.startsWith('✅') ? '#4ade80' : geminiStatus.startsWith('⌛') ? '#60a5fa' : '#f87171',
+                  border: '1px solid currentColor'
+                }}>
+                  {geminiStatus}
+                </div>
+              )}
+            </div>
+
           </div>
         </section>
 

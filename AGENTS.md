@@ -9,7 +9,7 @@ Welcome to **SoundKeys**! This document serves as the authoritative guide for AI
 > 1. **FEATURE REGISTRY MAINTENANCE**: Whenever you implement, modify, or plan a new feature, you **MUST update the Feature Registry table in this document (`AGENTS.md`)** before concluding your task.
 > 2. **VERSION SYNCHRONIZATION**:
 >    - **Major Changes**: Increment the major version number (`X.0.0`).
->    - **Minor / Subversion Changes**: Increment the minor version number (`1.X> 3. **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `1.2.1`).
+>    - **Minor / Subversion Changes**: Increment the minor version number (`1.X> 3. **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `2.0.0`).
 
 ---
 
@@ -94,10 +94,12 @@ SoundKeys/
 | **FEAT-025** | Multi-Sound Typing Pool | Dynamic typing sound slots in theme creator allowing random sound selection per keypress (OperaGX style) | ✅ Operational | v1.2.0 |
 | **FEAT-026** | CI Automatic Native Packaging & Signing | GitHub Actions workflow relies on `electron-builder` native module resolution, preventing node-gyp Visual Studio compiler errors while signing builds with `CSC_LINK` | ✅ Operational | v1.2.0 |
 | **FEAT-027** | Directory Reset & Fallback | Reset Data Directory to default location (%APPDATA%) + auto-fallback to default if custom directory is deleted | ✅ Operational | v1.2.0 |
-| **FEAT-028** | Subdirectory Migration Guard & Icon Tracking | Prevent recursive data directory migration into nested subfolders + tracked build/ icon assets for GitHub Actions | ✅ Operational | v1.2.1 |on-builder` native module resolution, preventing node-gyp Visual Studio compiler errors while signing builds with `CSC_LINK` | ✅ Operational | v1.2.0 |
-
-| **FEAT-027** | Directory Reset & Fallback | Reset Data Directory to default location (%APPDATA%) + auto-fallback to default if custom directory is deleted | ✅ Operational | v1.2.0 |
-
+| **FEAT-028** | Subdirectory Migration Guard & Icon Tracking | Prevent recursive data directory migration into nested subfolders + tracked build/ icon assets for GitHub Actions | ✅ Operational | v1.2.1 |
+| **FEAT-029** | Typing Test Page | Full WPM typing speed test with timed (15s/30s/60s/120s) & passage modes, character-by-character colour coding, live stats, confetti on personal best | ✅ Operational | v2.0.0 |
+| **FEAT-030** | Gemini AI Paragraph Generator | Secure Gemini API integration (main process only) generating paragraphs by category grid or custom prompt at Easy/Medium/Hard difficulty; built-in offline fallback | ✅ Operational | v2.0.0 |
+| **FEAT-031** | Paragraph Library | Save, delete, import and export typing paragraphs as JSON; tracks times used per entry | ✅ Operational | v2.0.0 |
+| **FEAT-032** | Typing Session Analytics | SQLite `typing_sessions` table logging every test; WPM trend chart, difficulty breakdown bar chart, and session history table in Analytics page | ✅ Operational | v2.0.0 |
+| **FEAT-033** | Gemini API Key Settings | Encrypted key storage via `electron-store`; key never sent to renderer; Show/Hide toggle, Save, Clear; status badge in Settings | ✅ Operational | v2.0.0 |
 
 ---
 
@@ -115,5 +117,5 @@ SoundKeys/
 4. **Feature Registry Updates**:
    Before completing any task, update the **Feature Registry** table above in `AGENTS.md`.
 5. **Version Synchronization**:
-   For every major change update the major version (`X.0.0`) and for minor changes update subversion (`1.X.0`). Ensure matching versions in `package.json`, `Sidebar.jsx`, `Settings.jsx`, `.github/workflows/build.yml`, and `AGENTS.md` (Current version: `1.2.0`).
+   For every major change update the major version (`X.0.0`) and for minor changes update subversion (`1.X.0`). Ensure matching versions in `package.json`, `Sidebar.jsx`, `Settings.jsx`, `.github/workflows/build.yml`, and `AGENTS.md` (Current version: `2.0.0`).
 

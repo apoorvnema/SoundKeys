@@ -14,6 +14,16 @@ const NAV_ITEMS = [
     )
   },
   {
+    id: 'typing-test',
+    label: 'Typing Test',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M6 9h2M10 9h2M14 9h2M18 9h0M6 13h2M10 13h2M14 13h2M6 17h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  },
+  {
     id: 'analytics',
     label: 'Analytics',
     icon: (
@@ -55,7 +65,7 @@ export default function Sidebar({ activePage, onNavigate }) {
       </div>
 
       <div className="sidebar-footer">
-        <span className="version-badge">v1.2.1</span>
+        <span className="version-badge">v2.0.0</span>
       </div>
     </nav>
   )
