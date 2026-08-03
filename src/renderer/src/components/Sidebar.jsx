@@ -24,6 +24,16 @@ const NAV_ITEMS = [
     )
   },
   {
+    id: 'keyboard-layout',
+    label: 'Key Layout',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    )
+  },
+  {
     id: 'analytics',
     label: 'Analytics',
     icon: (
@@ -65,7 +75,7 @@ export default function Sidebar({ activePage, onNavigate }) {
       </div>
 
       <div className="sidebar-footer">
-        <span className="version-badge">v2.0.0</span>
+        <span className="version-badge">v2.1.0</span>
       </div>
     </nav>
   )

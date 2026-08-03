@@ -2149,3 +2149,320 @@ svg    { display: block; flex-shrink: 0; }
 .typing-session-table tbody tr:hover td { background: rgba(255,255,255,0.03); }
 .wpm-cell { font-weight: 700; color: var(--accent-light); font-family: var(--mono); }
 .pb-row td { background: rgba(250,204,21,0.04) !important; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KEYBOARD LAYOUT MANAGER & TESTER PAGE (v2.1.0)
+═══════════════════════════════════════════════════════════════════════════ */
+
+.keyboard-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 40px;
+}
+
+.keyboard-tab-strip {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  gap: 4px;
+}
+
+.keyboard-tab-strip .tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--t2);
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.keyboard-tab-strip .tab-btn:hover {
+  color: var(--t1);
+}
+
+.keyboard-tab-strip .tab-btn.active {
+  background: rgba(147, 51, 234, 0.2);
+  color: var(--accent-light);
+  border: 1px solid rgba(147, 51, 234, 0.4);
+}
+
+.keyboard-stats-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.stats-pills {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+
+.stat-pill.total { color: #4ade80; border-color: rgba(74, 222, 128, 0.3); }
+.stat-pill.disabled { color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
+.stat-pill.override { color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); }
+
+.pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.pill-dot.green { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.pill-dot.red { background: #f87171; box-shadow: 0 0 6px #f87171; }
+.pill-dot.amber { background: #fbbf24; box-shadow: 0 0 6px #fbbf24; }
+
+/* ─── 104-Key Board ─────────────────────────────────────────────────────── */
+
+.keyboard-container {
+  padding: 20px 16px;
+  overflow-x: auto;
+}
+
+.keyboard-board {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 820px;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.keyboard-row {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.key-spacer {
+  height: 42px;
+  pointer-events: none;
+}
+
+.key-tile {
+  position: relative;
+  height: 42px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--t1);
+  font-family: var(--font);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  user-select: none;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+.key-tile:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.key-tile:active {
+  transform: translateY(1px);
+}
+
+.key-badge {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  font-size: 9px;
+  line-height: 1;
+}
+
+/* Status Classes */
+.key-tile.status-normal {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.key-tile.status-disabled {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  opacity: 0.8;
+}
+
+.key-tile.status-builtin {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+}
+
+.key-tile.status-external {
+  background: rgba(56, 189, 248, 0.12);
+  border-color: rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+}
+
+/* Keypress Glow (Tester mode) */
+.key-tile.key-pressed {
+  background: rgba(147, 51, 234, 0.45) !important;
+  border-color: #a855f7 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.8), inset 0 0 8px #a855f7 !important;
+  transform: translateY(1px);
+}
+
+/* ─── Key Log Strip (Tester) ────────────────────────────────────────────── */
+
+.key-log-container {
+  padding: 14px 18px;
+}
+
+.key-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.key-log-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.key-log-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(147, 51, 234, 0.15);
+  border: 1px solid rgba(147, 51, 234, 0.35);
+  padding: 4px 10px;
+  border-radius: 6px;
+  animation: keyChipIn 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@keyframes keyChipIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.chip-key {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  font-family: var(--mono);
+}
+
+.chip-time {
+  font-size: 0.68rem;
+  color: var(--t3);
+}
+
+/* ─── Key Config Popover Modal ──────────────────────────────────────────── */
+
+.key-popover-modal {
+  max-width: 440px;
+}
+
+.config-option-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.config-radio-tile {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.config-radio-tile:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-s);
+}
+
+.config-radio-tile.selected {
+  background: rgba(147, 51, 234, 0.12);
+  border-color: rgba(147, 51, 234, 0.4);
+}
+
+.tile-title {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--t1);
+}
+
+.tile-desc {
+  font-size: 0.74rem;
+  color: var(--t2);
+  margin-top: 2px;
+}
+
+.sub-config-box {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-left: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-label-sm {
+  font-size: 0.72rem;
+  color: var(--t2);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.flex-gap-sm {
+  display: flex;
+  gap: 8px;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.info-box-sm {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: #60a5fa;
+}
+

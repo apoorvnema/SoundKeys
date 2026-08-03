@@ -17,6 +17,7 @@ function buildFileUrl(basePath, filename) {
 
 const AudioEngine = forwardRef((props, ref) => {
   const soundsRef  = useRef({})     // { soundType: Howl | Howl[] }
+  const externalCacheRef = useRef({}) // { filePath: Howl }
   const volumeRef  = useRef(0.7)
   const themeIdRef = useRef(null)
 
@@ -26,6 +27,11 @@ const AudioEngine = forwardRef((props, ref) => {
       else s?.unload()
     }
     soundsRef.current = {}
+
+    for (const h of Object.values(externalCacheRef.current)) {
+      h?.unload()
+    }
+    externalCacheRef.current = {}
   }
 
   function loadTheme(theme) {
@@ -70,7 +76,35 @@ const AudioEngine = forwardRef((props, ref) => {
     console.log(`[Audio] Loaded theme: ${theme.name || theme.id}`)
   }
 
-  function play(soundType) {
+  function play(soundType, externalFile) {
+    const vol = volumeRef.current
+    if (Howler.ctx?.state === 'suspended') {
+      Howler.ctx.resume().catch(() => {})
+    }
+
+    if (soundType === '__external__' && externalFile) {
+      try {
+        if (!externalCacheRef.current[externalFile]) {
+          const fileUrl = externalFile.startsWith('file://') ? externalFile : `file:///${externalFile.replace(/\\/g, '/')}`
+          externalCacheRef.current[externalFile] = new Howl({
+            src: [fileUrl],
+            preload: true,
+            volume: vol,
+            html5: false,
+            onloaderror: (id, err) => {
+              console.warn(`[Audio] Load error for external audio file ${externalFile}:`, err)
+            }
+          })
+        }
+        const externalHowl = externalCacheRef.current[externalFile]
+        externalHowl.volume(vol)
+        externalHowl.play()
+      } catch (e) {
+        console.warn(`[Audio] External sound playback error:`, e)
+      }
+      return
+    }
+
     const sounds = soundsRef.current
 
     if (soundType === 'typing' || !sounds[soundType]) {
@@ -89,6 +123,9 @@ const AudioEngine = forwardRef((props, ref) => {
     for (const s of Object.values(soundsRef.current)) {
       if (Array.isArray(s)) s.forEach(h => h.volume(vol))
       else s?.volume(vol)
+    }
+    for (const h of Object.values(externalCacheRef.current)) {
+      h?.volume(vol)
     }
   }
 

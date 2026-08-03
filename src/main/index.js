@@ -654,7 +654,8 @@ const store = new Store({
     hideInTaskbar:        { type: 'boolean', default: false },
     closeAppAction:       { type: 'string',  default: 'tray' },
     dynamicTrayIndicator: { type: 'boolean', default: true },
-    dataLimitMb:          { type: 'number',  default: 100 }
+    dataLimitMb:          { type: 'number',  default: 100 },
+    keyOverrides:         { type: 'object',  default: {} }
   }
 })
 
@@ -785,6 +786,28 @@ function deleteCustomTheme(themeId) {
 // ─── Key Hook ─────────────────────────────────────────────────────────────
 const FUNCTION_KEYS = new Set([59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 87, 88])
 
+const KEYCODE_ALIAS_MAP = {
+  284: 28, 3612: 28, // Enter
+  285: 29, 3613: 29, // Ctrl
+  54: 42,           // Shift
+  312: 56, 3640: 56, // Alt
+  348: 347, 3675: 347, 3676: 347, // Win
+  57416: 328, 3640: 328, // Up
+  57424: 336, 3648: 336, // Down
+  57419: 331, 3643: 331, // Left
+  57421: 333, 3645: 333, // Right
+  3655: 327, 57399: 327, // Home
+  3663: 335, 57401: 335, // End
+  3657: 329, 57397: 329, // PgUp
+  3665: 337, 57405: 337, // PgDn
+  3666: 338, 57426: 338, // Insert
+  3667: 339, 57427: 339  // Delete
+}
+
+function resolveKeycode(kc) {
+  return KEYCODE_ALIAS_MAP[kc] || kc
+}
+
 function getSoundType(keycode) {
   switch (keycode) {
     case 57:  return 'spacebar'
@@ -835,6 +858,9 @@ function startKeyHook(onKeyPress) {
     hookInstance = uIOhook
 
     uIOhook.on('keydown', (event) => {
+      // Forward keydown scan code to renderer for Keyboard Tester visualizer mode
+      sendToRenderer('keylayout:keydown', { keycode: event.keycode })
+
       if (event.keycode === 29 || event.keycode === 285 || event.keycode === 3613) activeModifiers.ctrl  = true
       if (event.keycode === 42 || event.keycode === 54)  activeModifiers.shift = true
       if (event.keycode === 56 || event.keycode === 312 || event.keycode === 3640) activeModifiers.alt   = true
@@ -847,14 +873,38 @@ function startKeyHook(onKeyPress) {
         return // Do not play audio sound for the hotkey keypress itself
       }
 
-      const soundType = getSoundType(event.keycode)
+      const primaryKc = resolveKeycode(event.keycode)
+      const overrides = store.get('keyOverrides') || {}
+      const keyOverride = overrides[primaryKc]
+
+      if (keyOverride?.disabled) {
+        // Disabled key: log analytics, but skip sound & tray flash
+        const keyName = KEYCODE_TO_NAME[event.keycode] || `Key_${event.keycode}`
+        const defaultType = getSoundType(event.keycode)
+        onKeyPress({ soundType: defaultType, keycode: event.keycode, keyName, isDisabled: true })
+        return
+      }
+
+      let soundType = getSoundType(event.keycode)
+      let externalFile = null
+
+      if (keyOverride?.externalFile) {
+        soundType = '__external__'
+        externalFile = keyOverride.externalFile
+      } else if (keyOverride?.soundOverride) {
+        soundType = keyOverride.soundOverride
+      }
+
       if (soundType) {
         const keyName = KEYCODE_TO_NAME[event.keycode] || `Key_${event.keycode}`
-        onKeyPress({ soundType, keycode: event.keycode, keyName })
+        onKeyPress({ soundType, keycode: event.keycode, keyName, externalFile })
       }
     })
 
     uIOhook.on('keyup', (event) => {
+      // Forward keyup scan code to renderer for Keyboard Tester visualizer mode
+      sendToRenderer('keylayout:keyup', { keycode: event.keycode })
+
       if (event.keycode === 29 || event.keycode === 285 || event.keycode === 3613) activeModifiers.ctrl  = false
       if (event.keycode === 42 || event.keycode === 54)  activeModifiers.shift = false
       if (event.keycode === 56 || event.keycode === 312 || event.keycode === 3640) activeModifiers.alt   = false
@@ -1469,6 +1519,42 @@ function setupIPC() {
   ipcMain.handle('typing:get-stats',    () => analyticsDB.getTypingStats())
   ipcMain.handle('typing:get-trend',    (_, limit) => analyticsDB.getTypingTrend(limit || 30))
   ipcMain.handle('typing:get-by-diff',  () => analyticsDB.getTypingByDifficulty())
+
+  // ─── Key Layout Overrides ────────────────────────────────────────────────
+  ipcMain.handle('keylayout:get-overrides', () => store.get('keyOverrides') || {})
+
+  ipcMain.handle('keylayout:set-override', (_, { keycode, disabled, soundOverride, externalFile }) => {
+    const primaryKc = resolveKeycode(keycode)
+    const current = store.get('keyOverrides') || {}
+    if (!disabled && !soundOverride && !externalFile) {
+      delete current[primaryKc]
+    } else {
+      current[primaryKc] = {
+        disabled: Boolean(disabled),
+        soundOverride: soundOverride || null,
+        externalFile: externalFile || null
+      }
+    }
+    store.set('keyOverrides', current)
+    return current
+  })
+
+  ipcMain.handle('keylayout:reset-all', () => {
+    store.set('keyOverrides', {})
+    return {}
+  })
+
+  ipcMain.handle('keylayout:pick-file', async () => {
+    if (!mainWindow) return null
+    const { filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Custom Audio File for Key Override',
+      properties: ['openFile'],
+      filters: [
+        { name: 'Audio Files (*.wav, *.mp3, *.ogg, *.flac)', extensions: ['wav', 'mp3', 'ogg', 'flac'] }
+      ]
+    })
+    return filePaths?.[0] || null
+  })
 }
 
 
@@ -1546,13 +1632,13 @@ app.whenReady().then(async () => {
   })
 
   // Key hook: sound playback + analytics logging
-  setTimeout(startKeyHook.bind(null, ({ soundType, keycode, keyName }) => {
+  setTimeout(startKeyHook.bind(null, ({ soundType, keycode, keyName, externalFile, isDisabled }) => {
     analyticsDB.logKeystroke(keycode, keyName, soundType)
 
-    if (isMuted) return
+    if (isDisabled || isMuted) return
     flashTrayPulse()
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('sound:play', { soundType, keycode, keyName })
+      mainWindow.webContents.send('sound:play', { soundType, keycode, keyName, externalFile })
     }
   }), 1200)
 

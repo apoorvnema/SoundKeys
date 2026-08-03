@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard'
 import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import TypingTest from './pages/TypingTest'
+import KeyboardLayout from './pages/KeyboardLayout'
 import AudioEngine from './components/AudioEngine'
 
 class ErrorBoundary extends React.Component {
@@ -84,7 +85,7 @@ export default function App() {
     // sound:play — key pressed in main process
     const u1 = window.soundkeys.onPlaySound((data) => {
       setLastKeyEvent({ ...data, ts: Date.now() })
-      audioRef.current?.play(data.soundType)
+      audioRef.current?.play(data.soundType, data.externalFile)
     })
 
     // theme:changed — switched via tray menu
@@ -184,6 +185,9 @@ export default function App() {
             )}
             {activePage === 'typing-test' && (
               <TypingTest />
+            )}
+            {activePage === 'keyboard-layout' && (
+              <KeyboardLayout />
             )}
             {activePage === 'analytics' && (
               <Analytics />

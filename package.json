@@ -1,7 +1,7 @@
 {
   "name": "soundkeys",
   "productName": "SoundKeys",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "author": "Apoorv Nema",
   "description": "Tactile audio feedback and sound effects for every keypress on Windows",
   "main": "out/main/index.js",

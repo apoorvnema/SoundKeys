@@ -9,7 +9,7 @@ Welcome to **SoundKeys**! This document serves as the authoritative guide for AI
 > 1. **FEATURE REGISTRY MAINTENANCE**: Whenever you implement, modify, or plan a new feature, you **MUST update the Feature Registry table in this document (`AGENTS.md`)** before concluding your task.
 > 2. **VERSION SYNCHRONIZATION**:
 >    - **Major Changes**: Increment the major version number (`X.0.0`).
->    - **Minor / Subversion Changes**: Increment the minor version number (`1.X> 3. **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `2.0.0`).
+>    - **Minor / Subversion Changes**: Increment the minor version number (`1.X> 3. **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `2.1.0`).
 
 ---
 
@@ -100,6 +100,7 @@ SoundKeys/
 | **FEAT-031** | Paragraph Library | Save, delete, import and export typing paragraphs as JSON; tracks times used per entry | ✅ Operational | v2.0.0 |
 | **FEAT-032** | Typing Session Analytics | SQLite `typing_sessions` table logging every test; WPM trend chart, difficulty breakdown bar chart, and session history table in Analytics page | ✅ Operational | v2.0.0 |
 | **FEAT-033** | Gemini API Key Settings | Encrypted key storage via `electron-store`; key never sent to renderer; Show/Hide toggle, Save, Clear; status badge in Settings | ✅ Operational | v2.0.0 |
+| **FEAT-034** | Keyboard Layout Manager & Tester | Interactive 104-key visual keyboard page to disable/mute specific keys, override sound categories, assign external audio files, and test real-time key glow/unglow | ✅ Operational | v2.1.0 |
 
 ---
 
@@ -117,5 +118,5 @@ SoundKeys/
 4. **Feature Registry Updates**:
    Before completing any task, update the **Feature Registry** table above in `AGENTS.md`.
 5. **Version Synchronization**:
-   For every major change update the major version (`X.0.0`) and for minor changes update subversion (`1.X.0`). Ensure matching versions in `package.json`, `Sidebar.jsx`, `Settings.jsx`, `.github/workflows/build.yml`, and `AGENTS.md` (Current version: `2.0.0`).
+   For every major change update the major version (`X.0.0`) and for minor changes update subversion (`1.X.0`). Ensure matching versions in `package.json`, `Sidebar.jsx`, `Settings.jsx`, `.github/workflows/build.yml`, and `AGENTS.md` (Current version: `2.1.0`).
 
