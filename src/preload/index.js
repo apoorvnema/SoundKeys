@@ -55,6 +55,12 @@ contextBridge.exposeInMainWorld('soundkeys', {
   getTypingTrend:       (limit) => ipcRenderer.invoke('typing:get-trend', limit),
   getTypingByDifficulty:()      => ipcRenderer.invoke('typing:get-by-diff'),
 
+  // ── Key Layout Overrides ─────────────────────────────────────────────
+  getKeyOverrides:   () => ipcRenderer.invoke('keylayout:get-overrides'),
+  setKeyOverride:    (data) => ipcRenderer.invoke('keylayout:set-override', data),
+  resetKeyOverrides: () => ipcRenderer.invoke('keylayout:reset-all'),
+  pickOverrideFile:  () => ipcRenderer.invoke('keylayout:pick-file'),
+
   // ── Window Controls ──────────────────────────────────────────────────
   minimize: () => ipcRenderer.send('window:minimize'),
   close:    () => ipcRenderer.send('window:close'),
@@ -64,6 +70,18 @@ contextBridge.exposeInMainWorld('soundkeys', {
     const handler = (_, data) => cb(data)
     ipcRenderer.on('sound:play', handler)
     return () => ipcRenderer.removeListener('sound:play', handler)
+  },
+
+  onKeyLayoutDown: (cb) => {
+    const handler = (_, data) => cb(data)
+    ipcRenderer.on('keylayout:keydown', handler)
+    return () => ipcRenderer.removeListener('keylayout:keydown', handler)
+  },
+
+  onKeyLayoutUp: (cb) => {
+    const handler = (_, data) => cb(data)
+    ipcRenderer.on('keylayout:keyup', handler)
+    return () => ipcRenderer.removeListener('keylayout:keyup', handler)
   },
 
   onThemeChanged: (cb) => {
