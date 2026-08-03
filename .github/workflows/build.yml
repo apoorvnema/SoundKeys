@@ -45,21 +45,32 @@ jobs:
             release/*.exe
           retention-days: 30
 
+      - name: Extract package version
+        id: pkg
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag_name=v${VERSION}" >> $GITHUB_OUTPUT
+
       - name: Create / Update GitHub Release
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name || 'v2.1.0' }}
-          name: "SoundKeys ${{ github.ref_name || 'v2.1.0' }} Release"
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.pkg.outputs.tag_name }}
+          name: "SoundKeys v${{ steps.pkg.outputs.version }} Release"
           body: |
-            ## SoundKeys v2.1.0 Release
+            ## SoundKeys v${{ steps.pkg.outputs.version }} Release
 
-            Tactile audio feedback, analytics engine, customizable sound themes, Typing Test with Gemini AI, and full Keyboard Layout Manager with per-key mute and sound overrides.
+            Tactile audio feedback and sound effects for every keypress on Windows.
 
             ### Included Executables:
-            - **SoundKeys-2.1.0-portable.exe** (Standalone portable executable, no install required)
-            - **SoundKeys Setup 2.1.0.exe** (Windows NSIS Installer)
+            - **SoundKeys-${{ steps.pkg.outputs.version }}-portable.exe** (Standalone portable executable, no install required)
+            - **SoundKeys Setup ${{ steps.pkg.outputs.version }}.exe** (Windows NSIS Installer)
           files: |
             release/*.exe
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
