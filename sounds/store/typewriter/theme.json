@@ -1,0 +1,25 @@
+{
+  "name": "Typewriter",
+  "author": "SoundKeys Team",
+  "description": "Tactile mechanical typewriter clacks with multi-sound pool per keypress",
+  "typing": [
+    "typing_1.wav",
+    "typing_2.wav",
+    "typing_3.wav",
+    "typing_4.wav",
+    "typing_5.wav",
+    "typing_6.wav",
+    "typing_7.wav",
+    "typing_8.wav",
+    "typing_9.wav",
+    "typing_10.wav",
+    "typing_11.wav",
+    "typing_12.wav"
+  ],
+  "spacebar": "spacebar.wav",
+  "enter": "enter.wav",
+  "backspace": "backspace.wav",
+  "tab": "tab.wav",
+  "escape": "escape.wav",
+  "functionKeys": "functionKeys.wav"
+}

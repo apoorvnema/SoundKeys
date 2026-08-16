@@ -9,7 +9,8 @@ Welcome to **SoundKeys**! This document serves as the authoritative guide for AI
 > 1. **FEATURE REGISTRY MAINTENANCE**: Whenever you implement, modify, or plan a new feature, you **MUST update the Feature Registry table in this document (`AGENTS.md`)** before concluding your task.
 > 2. **VERSION SYNCHRONIZATION**:
 >    - **Major Changes**: Increment the major version number (`X.0.0`).
->    - **Minor / Subversion Changes**: Increment the minor version number (`1.X> 3. **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `2.1.0`).
+>    - **Minor / Subversion Changes**: Increment the minor version number (`1.X.0` or `3.X.0`).
+>    - **Strict Synchronization**: You **MUST keep version numbers identical across all files**: `package.json`, `.github/workflows/build.yml`, `Sidebar.jsx`, `Settings.jsx`, and `AGENTS.md`. (Current version: `3.3.0`).
 
 ---
 
@@ -32,7 +33,8 @@ SoundKeys/
 ├── electron.vite.config.mjs     ← Vite + Electron build setup
 ├── electron-builder.json5       ← Portable & NSIS packaging rules
 ├── scripts/
-│   └── create-cert.ps1          ← Self-signed code signing certificate generator
+│   ├── create-cert.ps1          ← Self-signed code signing certificate generator
+│   └── generate-piano.js        ← ADSR tone synthesis for Piano theme notes
 │
 ├── src/
 │   ├── main/
@@ -46,17 +48,24 @@ SoundKeys/
 │           ├── App.jsx          ← Main application container & IPC hooks
 │           ├── components/
 │           │   ├── AudioEngine.jsx  ← Howler.js low-latency audio player
+│           │   ├── HotkeyBindingsPanel.jsx ← Custom hotkey sound bindings editor
+│           │   ├── PianoKeyboard.jsx ← Interactive white/black key piano component
 │           │   ├── Sidebar.jsx      ← Navigation panel
 │           │   └── ThemeCreatorModal.jsx ← Custom theme creator/editor
 │           ├── pages/
 │           │   ├── Dashboard.jsx    ← Orb visualizer & live keypress stats
 │           │   ├── Analytics.jsx    ← SQLite analytics tab & interactive charts
-│           │   └── Settings.jsx     ← Preferences, theme manager, data dir, system toggles
+│           │   ├── KeyboardLayout.jsx ← Key Overrides & tester
+│           │   ├── PianoPractice.jsx ← Synthesia MIDI waterfall & freestyle mode
+│           │   ├── Settings.jsx     ← Preferences, feature log, data dir, system toggles
+│           │   ├── Store.jsx        ← Sound pack store & installed themes manager
+│           │   └── TypingTest.jsx   ← WPM speed test & AI paragraph generator
 │           └── styles/
 │               └── index.css        ← Design system tokens & styles
 │
 └── sounds/
-    └── themes/                  ← Default sound pack playlists (copied to user dataDir)
+    ├── store/                   ← Bundled sound pack store assets (Piano, Typewriter)
+    └── themes/                  ← User sound pack playlists (copied to user dataDir)
         ├── default/             ← SoundKeys Classic
         └── ...
 ```
@@ -101,6 +110,23 @@ SoundKeys/
 | **FEAT-032** | Typing Session Analytics | SQLite `typing_sessions` table logging every test; WPM trend chart, difficulty breakdown bar chart, and session history table in Analytics page | ✅ Operational | v2.0.0 |
 | **FEAT-033** | Gemini API Key Settings | Encrypted key storage via `electron-store`; key never sent to renderer; Show/Hide toggle, Save, Clear; status badge in Settings | ✅ Operational | v2.0.0 |
 | **FEAT-034** | Keyboard Layout Manager & Tester | Interactive 104-key visual keyboard page to disable/mute specific keys, override sound categories, assign external audio files, and test real-time key glow/unglow | ✅ Operational | v2.1.0 |
+| **FEAT-035** | Hotkey Sound Bindings | Assign custom sounds to key shortcuts (e.g., Ctrl+C, Ctrl+Shift+Alt+Q+S); shortcut match suppresses regular keypress sound | ✅ Operational | v3.0.0 |
+| **FEAT-036** | Feature Log in Settings | Versioned changelog inside Settings showing all 39 features grouped by version with search filter | ✅ Operational | v3.0.0 |
+| **FEAT-037** | Sound Pack & Theme Store | Dedicated sidebar Store page with Browse + My Themes tabs; absorbs theme management from Settings; local-first, ready for online expansion | ✅ Operational | v3.0.0 |
+| **FEAT-038** | Piano Per-Key Theme | ADSR-synthesized WAV per keycode mapped via `perKeyMapping` schema with C3-C7 pitch range | ✅ Operational | v3.0.0 |
+| **FEAT-039** | Piano Practice Page | Synthesia-style MIDI waterfall + freestyle piano mode; per-key glow visualizer; MIDI file loader with transport controls | ✅ Operational | v3.0.0 |
+| **FEAT-040** | Interactive Click-to-Play Piano Keys | Play piano notes on click/touch with per-key acoustic WAV samples and low-latency Web Audio synthesizer fallback | ✅ Operational | v3.1.0 |
+| **FEAT-041** | Piano Octave Shift Control | Interactive octave transpose controls (-2 to +2 octaves) shifting both keyboard key mapping and audio pitch across the full piano range | ✅ Operational | v3.1.0 |
+| **FEAT-042** | Comprehensive Piano Key & Note Labels | Real-time dual label display showing exact piano note names (e.g., C4, D#4) and mapped computer keyboard shortcuts on all white and black keys | ✅ Operational | v3.1.0 |
+| **FEAT-043** | Waterfall Play-Along Audio Engine | Synchronized audio playback as falling MIDI notes hit the trigger line with real-time key glow and simultaneous user play-along support | ✅ Operational | v3.1.0 |
+| **FEAT-044** | Piano Click Scroll Fix | Removed erroneous auto-scroll on click; piano scrolls only on practice cluster advance via controlled `scrollToCenterMidi` prop | ✅ Operational | v3.2.0 |
+| **FEAT-045** | Left / Right / Both Hand Filter | Filter waterfall and practice mode by MIDI channel hand: Both, Right hand (ch1/treble), or Left hand (ch2/bass) — affects display and audio | ✅ Operational | v3.2.0 |
+| **FEAT-046** | Practice Mode Chord Note Display | Prominent real-time chord display panel with large note name pills, per-note hit checkmarks, chord vs single-note label, and progress bar | ✅ Operational | v3.2.0 |
+| **FEAT-047** | Fullscreen Piano Practice | One-click fullscreen toggle button in Piano Practice header; ESC also exits; icon changes to reflect current state | ✅ Operational | v3.2.0 |
+| **FEAT-048** | Salamander Grand Piano Integration Script | Node.js helper script (`scripts/download-piano-samples.js`) to install free CC-licensed Yamaha C5 grand piano samples with full C1–C8 coverage | ✅ Operational | v3.2.0 |
+| **FEAT-049** | A-to-B Looping Mode | Set custom A and B loop points on timeline with interactive progress bar markers and continuous playback/practice section looping | ✅ Operational | v3.3.0 |
+| **FEAT-050** | Smart Hand Color Separation | Intelligent multi-track & Middle-C pitch split coloring Left Hand notes in Amber/Yellow and Right Hand notes in Cyan/Blue | ✅ Operational | v3.3.0 |
+| **FEAT-051** | Practice Out-of-Range Auto-Play | Automatically plays audio and satisfies chord notes that fall outside the active playable keyboard range so practice never gets stuck | ✅ Operational | v3.3.0 |
 
 ---
 
@@ -118,5 +144,4 @@ SoundKeys/
 4. **Feature Registry Updates**:
    Before completing any task, update the **Feature Registry** table above in `AGENTS.md`.
 5. **Version Synchronization**:
-   For every major change update the major version (`X.0.0`) and for minor changes update subversion (`1.X.0`). Ensure matching versions in `package.json`, `Sidebar.jsx`, `Settings.jsx`, `.github/workflows/build.yml`, and `AGENTS.md` (Current version: `2.1.0`).
-
+   For every major change update the major version (`X.0.0`) and for minor changes update subversion (`1.X.0` or `3.X.0`). Ensure matching versions in `package.json`, `Sidebar.jsx`, `Settings.jsx`, `.github/workflows/build.yml`, and `AGENTS.md` (Current version: `3.3.0`).

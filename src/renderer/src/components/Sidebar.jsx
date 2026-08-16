@@ -34,6 +34,27 @@ const NAV_ITEMS = [
     )
   },
   {
+    id: 'piano-practice',
+    label: 'Piano Practice',
+    pianoOnly: true,
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M6 12v6M9 12v6M12 12v6M15 12v6M18 12v6M6 4v8M9 4v8M12 4v8M15 4v8M18 4v8" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+    )
+  },
+  {
+    id: 'store',
+    label: 'Store',
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 22V12h6v10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  },
+  {
     id: 'analytics',
     label: 'Analytics',
     icon: (
@@ -57,11 +78,14 @@ const NAV_ITEMS = [
   }
 ]
 
-export default function Sidebar({ activePage, onNavigate }) {
+export default function Sidebar({ activePage, onNavigate, currentThemeId }) {
+  const isPianoActive = currentThemeId === 'piano'
+  const visibleNavItems = NAV_ITEMS.filter(item => !item.pianoOnly || isPianoActive)
+
   return (
     <nav className="sidebar">
       <div className="sidebar-nav">
-        {NAV_ITEMS.map(item => (
+        {visibleNavItems.map(item => (
           <button
             key={item.id}
             className={`nav-item ${activePage === item.id ? 'active' : ''}`}
@@ -75,7 +99,7 @@ export default function Sidebar({ activePage, onNavigate }) {
       </div>
 
       <div className="sidebar-footer">
-        <span className="version-badge">v2.1.0</span>
+        <span className="version-badge">v3.3.0</span>
       </div>
     </nav>
   )

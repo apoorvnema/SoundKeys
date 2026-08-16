@@ -655,7 +655,8 @@ const store = new Store({
     closeAppAction:       { type: 'string',  default: 'tray' },
     dynamicTrayIndicator: { type: 'boolean', default: true },
     dataLimitMb:          { type: 'number',  default: 100 },
-    keyOverrides:         { type: 'object',  default: {} }
+    keyOverrides:         { type: 'object',  default: {} },
+    hotkeyBindings:       { type: 'array',   default: [] }
   }
 })
 
@@ -852,18 +853,69 @@ function checkHotkeyMatch(keycode) {
   return targetCode ? keycode === targetCode : false
 }
 
+function matchesCombo(keycode, comboStr) {
+  if (!comboStr) return false
+  const upper = comboStr.toUpperCase().trim()
+  const parts = upper.split('+')
+  if (parts.length < 2) return false
+
+  const triggerKey = parts[parts.length - 1].trim()
+  const modifiersNeeded = parts.slice(0, parts.length - 1)
+
+  const needCtrl  = modifiersNeeded.some(m => m === 'CTRL' || m === 'COMMANDORCONTROL')
+  const needShift = modifiersNeeded.some(m => m === 'SHIFT')
+  const needAlt   = modifiersNeeded.some(m => m === 'ALT')
+  const needWin   = modifiersNeeded.some(m => m === 'WIN' || m === 'META' || m === 'SUPER')
+
+  const hasCtrl  = activeModifiers.ctrl
+  const hasShift = activeModifiers.shift
+  const hasAlt   = activeModifiers.alt
+  const hasWin   = activeModifiers.win || false
+
+  if (needCtrl !== hasCtrl) return false
+  if (needShift !== hasShift) return false
+  if (needAlt !== hasAlt) return false
+  if (needWin !== hasWin) return false
+
+  const primaryKc = resolveKeycode(keycode)
+  const targetCode = KEYCHAR_TO_CODE[triggerKey]
+  return targetCode ? primaryKc === targetCode : false
+}
+
+const KEYCHAR_TO_CODE = {
+  'A': 30, 'B': 48, 'C': 46, 'D': 32, 'E': 18, 'F': 33, 'G': 34, 'H': 35,
+  'I': 23, 'J': 36, 'K': 37, 'L': 38, 'M': 50, 'N': 49, 'O': 24, 'P': 25,
+  'Q': 16, 'R': 19, 'S': 31, 'T': 20, 'U': 22, 'V': 47, 'W': 17, 'X': 45,
+  'Y': 21, 'Z': 44,
+  '1': 2,  '2': 3,  '3': 4,  '4': 5,  '5': 6,  '6': 7,  '7': 8,  '8': 9, '9': 10, '0': 11,
+  'SPACE': 57, 'ENTER': 28, 'TAB': 15, 'BACKSPACE': 14, 'ESCAPE': 1, 'ESC': 1,
+  'F1': 59, 'F2': 60, 'F3': 61, 'F4': 62, 'F5': 63, 'F6': 64,
+  'F7': 65, 'F8': 66, 'F9': 67, 'F10': 68, 'F11': 87, 'F12': 88
+}
+
+let currentlyPressedKeys = new Set()
+
 function startKeyHook(onKeyPress) {
   try {
     const { uIOhook } = require('uiohook-napi')
     hookInstance = uIOhook
 
     uIOhook.on('keydown', (event) => {
+      const isRepeat = currentlyPressedKeys.has(event.keycode)
+      currentlyPressedKeys.add(event.keycode)
+
       // Forward keydown scan code to renderer for Keyboard Tester visualizer mode
       sendToRenderer('keylayout:keydown', { keycode: event.keycode })
 
       if (event.keycode === 29 || event.keycode === 285 || event.keycode === 3613) activeModifiers.ctrl  = true
       if (event.keycode === 42 || event.keycode === 54)  activeModifiers.shift = true
       if (event.keycode === 56 || event.keycode === 312 || event.keycode === 3640) activeModifiers.alt   = true
+      if (event.keycode === 347 || event.keycode === 348 || event.keycode === 3675 || event.keycode === 3676) activeModifiers.win = true
+
+      // If Piano theme (perKeyMapping) is active, ignore OS key repeat events to register a single pressed sound
+      if (isRepeat && currentTheme?.perKeyMapping) {
+        return
+      }
 
       if (checkHotkeyMatch(event.keycode)) {
         if (!isElectronShortcutActive) {
@@ -871,6 +923,22 @@ function startKeyHook(onKeyPress) {
           toggleMute()
         }
         return // Do not play audio sound for the hotkey keypress itself
+      }
+
+      // Check custom hotkey sound bindings (e.g., Ctrl+C -> custom sound)
+      const userBindings = store.get('hotkeyBindings') || []
+      for (const binding of userBindings) {
+        if (binding.combo && matchesCombo(event.keycode, binding.combo)) {
+          const keyName = KEYCODE_TO_NAME[event.keycode] || `Key_${event.keycode}`
+          onKeyPress({
+            soundType: binding.soundType || 'typing',
+            externalFile: binding.externalFile || null,
+            keycode: event.keycode,
+            keyName,
+            isHotkeyBinding: true
+          })
+          return // Early return: suppress standard key sound
+        }
       }
 
       const primaryKc = resolveKeycode(event.keycode)
@@ -902,12 +970,15 @@ function startKeyHook(onKeyPress) {
     })
 
     uIOhook.on('keyup', (event) => {
+      currentlyPressedKeys.delete(event.keycode)
+
       // Forward keyup scan code to renderer for Keyboard Tester visualizer mode
       sendToRenderer('keylayout:keyup', { keycode: event.keycode })
 
       if (event.keycode === 29 || event.keycode === 285 || event.keycode === 3613) activeModifiers.ctrl  = false
       if (event.keycode === 42 || event.keycode === 54)  activeModifiers.shift = false
       if (event.keycode === 56 || event.keycode === 312 || event.keycode === 3640) activeModifiers.alt   = false
+      if (event.keycode === 347 || event.keycode === 348 || event.keycode === 3675 || event.keycode === 3676) activeModifiers.win = false
     })
 
     uIOhook.start()
@@ -1555,6 +1626,253 @@ function setupIPC() {
     })
     return filePaths?.[0] || null
   })
+
+  // ─── Hotkey Sound Bindings ──────────────────────────────────────────────
+  ipcMain.handle('hotkey-bindings:get', () => store.get('hotkeyBindings') || [])
+
+  ipcMain.handle('hotkey-bindings:set', (_, bindings) => {
+    if (!Array.isArray(bindings)) return { success: false, error: 'Invalid payload' }
+    store.set('hotkeyBindings', bindings)
+    return { success: true, bindings }
+  })
+
+  ipcMain.handle('hotkey-bindings:test', (_, combo) => {
+    if (!combo || typeof combo !== 'string') return { valid: false, error: 'Empty combo' }
+    const globalMute = (store.get('globalToggleHotkey') || 'Ctrl+Shift+S').toUpperCase()
+    if (combo.toUpperCase() === globalMute) {
+      return { valid: false, error: 'Conflicts with global mute shortcut' }
+    }
+    return { valid: true }
+  })
+
+  // ─── Store Manager ──────────────────────────────────────────────────────
+  ipcMain.handle('store:list', () => {
+    try {
+      const manifestPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'sounds', 'store', 'store-manifest.json')
+        : path.join(process.cwd(), 'sounds', 'store', 'store-manifest.json')
+
+      if (!fs.existsSync(manifestPath)) return []
+
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+      const installedThemes = listThemes().map(t => t.id)
+
+      const packs = (manifest.packs || []).map(pack => ({
+        ...pack,
+        installed: installedThemes.includes(pack.id)
+      }))
+
+      return packs
+    } catch (err) {
+      console.error('[Store] Error listing store packs:', err)
+      return []
+    }
+  })
+
+  ipcMain.handle('store:install', (_, packId) => {
+    try {
+      const storePackDir = app.isPackaged
+        ? path.join(process.resourcesPath, 'sounds', 'store', packId)
+        : path.join(process.cwd(), 'sounds', 'store', packId)
+
+      if (!fs.existsSync(storePackDir)) {
+        return { success: false, error: `Store pack folder '${packId}' not found.` }
+      }
+
+      const targetThemeDir = path.join(getSoundsBasePath(), 'themes', packId)
+      copyFolderRecursiveSync(storePackDir, targetThemeDir)
+
+      return { success: true, themes: listThemes() }
+    } catch (err) {
+      console.error('[Store] Error installing pack:', err)
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('store:uninstall', (_, packId) => {
+    try {
+      const res = deleteCustomTheme(packId)
+      return { success: res, themes: listThemes() }
+    } catch (err) {
+      return { success: false, error: err.message }
+    }
+  })
+
+  ipcMain.handle('store:preview', (_, packId) => {
+    const storePackDir = app.isPackaged
+      ? path.join(process.resourcesPath, 'sounds', 'store', packId)
+      : path.join(process.cwd(), 'sounds', 'store', packId)
+
+    const manifestPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'sounds', 'store', 'store-manifest.json')
+      : path.join(process.cwd(), 'sounds', 'store', 'store-manifest.json')
+
+    try {
+      if (fs.existsSync(manifestPath)) {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+        const pack = manifest.packs?.find(p => p.id === packId)
+        if (pack?.previewSound) {
+          const soundFile = path.join(storePackDir, pack.previewSound)
+          if (fs.existsSync(soundFile)) return soundFile
+        }
+      }
+    } catch (_) {}
+    return null
+  })
+
+  // ─── Piano MIDI Loader ──────────────────────────────────────────────────
+  ipcMain.handle('piano:load-midi', async () => {
+    if (!mainWindow) return { success: false, error: 'No main window' }
+    const { filePaths } = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select MIDI File for Piano Waterfall Practice',
+      properties: ['openFile'],
+      filters: [{ name: 'MIDI Files (*.mid, *.midi)', extensions: ['mid', 'midi'] }]
+    })
+    if (!filePaths?.[0]) return { success: false, cancelled: true }
+
+    return parseMidiFile(filePaths[0])
+  })
+}
+
+// ─── MIDI Parser Helper ───────────────────────────────────────────────────
+function parseMidiFile(filePath) {
+  try {
+    const midiParser = require('midi-parser-js')
+    const buffer = fs.readFileSync(filePath)
+    const midi = midiParser.parse(new Uint8Array(buffer))
+
+    if (!midi || !midi.track) return { success: false, error: 'Invalid MIDI file structure' }
+
+    const timeDivision = midi.timeDivision || 480
+    let currentBpm = 120
+    let usPerBeat = 500000
+
+    const rawEvents = []
+
+    midi.track.forEach((trackEvents, trackIdx) => {
+      let currentTick = 0
+      const eventsList = Array.isArray(trackEvents.event) ? trackEvents.event : []
+      eventsList.forEach(e => {
+        currentTick += (e.deltaTime || 0)
+        if (e.type === 255 && e.metaType === 81 && e.data) {
+          let us = (e.data[0] << 16) | (e.data[1] << 8) | e.data[2]
+          if (us > 0) {
+            usPerBeat = us
+            currentBpm = Math.round(60000000 / us)
+          }
+        }
+        if (e.type === 9 && e.data) {
+          const noteNum = e.data[0]
+          const velocity = e.data[1]
+          const channel = (e.channel !== undefined) ? e.channel : trackIdx
+          rawEvents.push({ tick: currentTick, type: velocity > 0 ? 'noteOn' : 'noteOff', noteNum, velocity, channel, trackIdx })
+        } else if (e.type === 8 && e.data) {
+          const noteNum = e.data[0]
+          const channel = (e.channel !== undefined) ? e.channel : trackIdx
+          rawEvents.push({ tick: currentTick, type: 'noteOff', noteNum, velocity: 0, channel, trackIdx })
+        }
+      })
+    })
+
+    rawEvents.sort((a, b) => a.tick - b.tick)
+
+    const msPerTick = (usPerBeat / 1000) / timeDivision
+    const activeNotes = {}
+    const rawNotes = []
+
+    rawEvents.forEach(e => {
+      const ms = Math.round(e.tick * msPerTick)
+      const key = `${e.trackIdx}_${e.channel}_${e.noteNum}`
+      if (e.type === 'noteOn') {
+        activeNotes[key] = ms
+      } else if (e.type === 'noteOff' && activeNotes[key] !== undefined) {
+        const startMs = activeNotes[key]
+        const durationMs = Math.max(50, ms - startMs)
+        rawNotes.push({
+          noteNumber: e.noteNum,
+          startMs,
+          durationMs,
+          channel: e.channel,
+          trackIdx: e.trackIdx,
+          velocity: e.velocity
+        })
+        delete activeNotes[key]
+      }
+    })
+
+    rawNotes.sort((a, b) => a.startMs - b.startMs)
+
+    // ── Smart Left/Right Hand Classification ──
+    // Determine if tracks or channels separate treble vs bass
+    const trackPitches = {}
+    const channelPitches = {}
+
+    rawNotes.forEach(n => {
+      if (!trackPitches[n.trackIdx]) trackPitches[n.trackIdx] = []
+      trackPitches[n.trackIdx].push(n.noteNumber)
+
+      if (!channelPitches[n.channel]) channelPitches[n.channel] = []
+      channelPitches[n.channel].push(n.noteNumber)
+    })
+
+    const distinctTracks = Object.keys(trackPitches).map(Number)
+    const distinctChannels = Object.keys(channelPitches).map(Number)
+
+    let trackHandMap = {}
+    if (distinctTracks.length >= 2) {
+      const trackAvgs = distinctTracks.map(t => ({
+        track: t,
+        avg: trackPitches[t].reduce((a, b) => a + b, 0) / trackPitches[t].length
+      })).sort((a, b) => b.avg - a.avg)
+
+      if (trackAvgs.length === 2 && Math.abs(trackAvgs[0].avg - trackAvgs[1].avg) > 7) {
+        trackHandMap[trackAvgs[0].track] = 'right'
+        trackHandMap[trackAvgs[1].track] = 'left'
+      }
+    }
+
+    let channelHandMap = {}
+    if (distinctChannels.length >= 2) {
+      const chanAvgs = distinctChannels.map(c => ({
+        channel: c,
+        avg: channelPitches[c].reduce((a, b) => a + b, 0) / channelPitches[c].length
+      })).sort((a, b) => b.avg - a.avg)
+
+      if (chanAvgs.length === 2 && Math.abs(chanAvgs[0].avg - chanAvgs[1].avg) > 7) {
+        channelHandMap[chanAvgs[0].channel] = 'right'
+        channelHandMap[chanAvgs[1].channel] = 'left'
+      }
+    }
+
+    const notes = rawNotes.map(n => {
+      let hand = 'right'
+      if (trackHandMap[n.trackIdx]) {
+        hand = trackHandMap[n.trackIdx]
+      } else if (channelHandMap[n.channel]) {
+        hand = channelHandMap[n.channel]
+      } else {
+        // Pitch-based split: < 60 (Middle C / C4) is Left Hand (Yellow), >= 60 is Right Hand (Blue)
+        hand = n.noteNumber < 60 ? 'left' : 'right'
+      }
+      return {
+        ...n,
+        hand
+      }
+    })
+
+    const totalDurationMs = notes.length > 0 ? Math.max(...notes.map(n => n.startMs + n.durationMs)) : 0
+
+    return {
+      success: true,
+      bpm: currentBpm,
+      durationMs: totalDurationMs,
+      totalNotes: notes.length,
+      notes
+    }
+  } catch (err) {
+    console.error('[MIDI Parser] Error parsing file:', err)
+    return { success: false, error: err.message }
+  }
 }
 
 

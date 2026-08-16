@@ -1,0 +1,27 @@
+{
+  "version": "3.3.0",
+  "packs": [
+    {
+      "id": "piano",
+      "name": "Piano",
+      "description": "Every key plays a unique piano note — full chromatic C3-C7 pitch mapping with Synthesia layout",
+      "author": "SoundKeys Team",
+      "version": "1.0.0",
+      "tags": ["music", "piano", "per-key"],
+      "previewSound": "piano_c4.wav",
+      "themeFolder": "piano",
+      "perKeyMapping": true
+    },
+    {
+      "id": "typewriter",
+      "name": "Typewriter",
+      "description": "Tactile mechanical typewriter clacks with 12 multi-sound typing pool and carriage return",
+      "author": "SoundKeys Team",
+      "version": "1.0.0",
+      "tags": ["retro", "mechanical"],
+      "previewSound": "typing_1.wav",
+      "themeFolder": "typewriter",
+      "perKeyMapping": false
+    }
+  ]
+}

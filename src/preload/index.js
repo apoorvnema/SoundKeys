@@ -61,6 +61,20 @@ contextBridge.exposeInMainWorld('soundkeys', {
   resetKeyOverrides: () => ipcRenderer.invoke('keylayout:reset-all'),
   pickOverrideFile:  () => ipcRenderer.invoke('keylayout:pick-file'),
 
+  // ── Hotkey Sound Bindings ────────────────────────────────────────────
+  getHotkeyBindings: () => ipcRenderer.invoke('hotkey-bindings:get'),
+  setHotkeyBindings: (bindings) => ipcRenderer.invoke('hotkey-bindings:set', bindings),
+  testHotkeyCombo:   (combo) => ipcRenderer.invoke('hotkey-bindings:test', combo),
+
+  // ── Store Manager ────────────────────────────────────────────────────
+  listStorePacks:    () => ipcRenderer.invoke('store:list'),
+  installStorePack:  (packId) => ipcRenderer.invoke('store:install', packId),
+  uninstallStorePack:(packId) => ipcRenderer.invoke('store:uninstall', packId),
+  previewStorePack:  (packId) => ipcRenderer.invoke('store:preview', packId),
+
+  // ── Piano MIDI Practice ──────────────────────────────────────────────
+  loadMidiFile:      () => ipcRenderer.invoke('piano:load-midi'),
+
   // ── Window Controls ──────────────────────────────────────────────────
   minimize: () => ipcRenderer.send('window:minimize'),
   close:    () => ipcRenderer.send('window:close'),

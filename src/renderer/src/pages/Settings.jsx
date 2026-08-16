@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import ThemeCreatorModal from '../components/ThemeCreatorModal'
+import HotkeyBindingsPanel from '../components/HotkeyBindingsPanel'
+import FeatureLogModal from '../components/FeatureLogModal'
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
@@ -38,59 +39,6 @@ function Toggle({ value, onChange, disabled = false }) {
     >
       <span className="toggle-thumb" />
     </button>
-  )
-}
-
-function ThemeCard({ theme, isActive, onSelect, onEdit, onDelete }) {
-  const wavCount = Object.values(theme).filter(
-    v => typeof v === 'string' && v.toLowerCase().endsWith('.wav')
-  ).length + (Array.isArray(theme.typing) ? theme.typing.length - 1 : 0)
-
-  const isDefault = theme.id === 'default'
-
-  return (
-    <div className={`theme-card ${isActive ? 'active' : ''}`}>
-      <div className="theme-card-main" onClick={() => onSelect(theme.id)}>
-        <div className="theme-card-emoji">🎵</div>
-        <div className="theme-card-body">
-          <div className="theme-card-name-row">
-            <span className="theme-card-name">{theme.name || theme.id}</span>
-            {isDefault && <span className="builtin-badge">Built-in</span>}
-          </div>
-          <div className="theme-card-meta">
-            {wavCount} sound{wavCount !== 1 ? 's' : ''}
-            {theme.author ? ` · By ${theme.author}` : ''}
-            {theme.description ? ` · ${theme.description}` : ''}
-          </div>
-        </div>
-        {isActive && (
-          <div className="theme-card-check">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-              <path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-        )}
-      </div>
-
-      {!isDefault && (
-        <div className="theme-card-actions">
-          <button
-            className="btn-theme-action"
-            onClick={(e) => { e.stopPropagation(); onEdit(theme) }}
-            title="Edit theme config & sounds"
-          >
-            ✏️ Edit
-          </button>
-          <button
-            className="btn-theme-action danger"
-            onClick={(e) => { e.stopPropagation(); onDelete(theme) }}
-            title="Delete custom theme"
-          >
-            🗑️ Delete
-          </button>
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -148,10 +96,8 @@ function HotkeyRecorder({ currentHotkey, onChange }) {
 }
 
 // ── Settings Page ───────────────────────────────────────────────────────────
-export default function Settings({ settings, themes, currentTheme, onSettingChange, onThemeSwitch, onThemesUpdated }) {
+export default function Settings({ settings, onSettingChange, activeThemeName, onNavigateToStore }) {
   const [volLocal, setVolLocal] = useState(settings?.volume ?? 0.7)
-  const [isCreatorOpen, setIsCreatorOpen] = useState(false)
-  const [editingTheme, setEditingTheme] = useState(null)
 
   // Data & Storage states
   const [dbSize, setDbSize]               = useState('0.00')
@@ -166,6 +112,9 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
   const [geminiKeyIsSet, setGeminiKeyIsSet] = useState(false)
   const [showGeminiKey, setShowGeminiKey] = useState(false)
   const [geminiStatus, setGeminiStatus]   = useState('')
+
+  // Feature Log Modal state
+  const [isFeatureLogOpen, setIsFeatureLogOpen] = useState(false)
 
   const loadDataStorageMeta = useCallback(async () => {
     if (!window.soundkeys) return
@@ -194,25 +143,6 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
     onSettingChange('volume', v)
   }, [onSettingChange])
 
-  const handleEditTheme = (theme) => {
-    setEditingTheme(theme)
-    setIsCreatorOpen(true)
-  }
-
-  const handleDeleteTheme = async (theme) => {
-    if (confirm(`Are you sure you want to delete custom theme "${theme.name || theme.id}"?`)) {
-      const res = await window.soundkeys?.deleteTheme(theme.id)
-      if (res?.themes) {
-        onThemesUpdated(res.themes)
-      }
-    }
-  }
-
-  const handleModalClose = () => {
-    setIsCreatorOpen(false)
-    setEditingTheme(null)
-  }
-
   const handleChangeDataDir = async () => {
     const selected = await window.soundkeys?.selectDataDir()
     if (!selected) return
@@ -220,7 +150,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
     const res = await window.soundkeys?.changeDataDir(selected)
     if (res?.success) {
       if (res.hasRemainingFiles && res.oldDir) {
-        alert(`Data directory moved to:\n${res.dataDir}\n\nSoundKeys will now restart. Note: Leftover non-SoundKeys files in "${res.oldDir}" may be manually deleted if desired.`)
+        alert(`Data directory moved to:\n${res.dataDir}\n\nSoundKeys will now restart.`)
       }
     } else {
       const errMsg = res?.error || 'Failed to move data directory.'
@@ -238,7 +168,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
       const res = await window.soundkeys?.changeDataDir(targetDir)
       if (res?.success) {
         if (res.hasRemainingFiles && res.oldDir) {
-          alert(`Data directory restored to default location!\n\nSoundKeys will now restart. Note: Leftover non-SoundKeys files in "${res.oldDir}" may be manually deleted if desired.`)
+          alert(`Data directory restored to default location!`)
         }
       } else {
         const errMsg = res?.error || 'Failed to restore default directory.'
@@ -269,57 +199,53 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
   }
 
   const handleValidateGeminiKey = async (customKeyToTest) => {
-    setGeminiStatus('⌛ Validating API key with Gemini...')
+    setGeminiStatus('Validating API key with Gemini...')
     const res = await window.soundkeys?.geminiValidateKey(customKeyToTest || (geminiKey.trim() || null))
     if (res?.valid) {
       if (res?.quotaExceeded || res?.warning) {
-        setGeminiStatus(`⚠️ Key is valid! (${res.warning || 'Free tier quota temporarily reached'})`)
+        setGeminiStatus(`Key is valid! (${res.warning || 'Free tier quota temporarily reached'})`)
       } else {
-        setGeminiStatus('✅ API Key is valid and working!')
+        setGeminiStatus('API Key is valid and working!')
       }
     } else {
-      setGeminiStatus(`❌ Validation error: ${res?.error || 'Failed to validate key'}`)
+      setGeminiStatus(`Validation error: ${res?.error || 'Failed to validate key'}`)
     }
   }
 
   const handleSaveGeminiKey = async () => {
     const keyToSave = geminiKey.trim()
     if (!keyToSave) return
-    setGeminiStatus('⌛ Saving & validating key...')
+    setGeminiStatus('Saving & validating key...')
 
-    // Save key to store
     const res = await window.soundkeys?.geminiSetKey(keyToSave)
     if (res?.success) {
       setGeminiKeyIsSet(true)
       setGeminiKey('')
       setShowGeminiKey(false)
 
-      // Test key validation
       const valRes = await window.soundkeys?.geminiValidateKey(keyToSave)
       if (valRes?.valid) {
         if (valRes.quotaExceeded) {
-          setGeminiStatus('✅ Key saved! (Note: Gemini Free Tier quota temporarily reached)')
+          setGeminiStatus('Key saved! (Note: Gemini Free Tier quota temporarily reached)')
         } else {
-          setGeminiStatus('✅ Key saved and verified successfully!')
+          setGeminiStatus('Key saved and verified successfully!')
         }
       } else {
-        setGeminiStatus(`⚠️ Key saved, but Google API returned: ${valRes?.error || 'Validation warning'}`)
+        setGeminiStatus(`Key saved, but Google API returned: ${valRes?.error || 'Validation warning'}`)
       }
       setTimeout(() => setGeminiStatus(''), 5000)
     }
   }
-
 
   const handleClearGeminiKey = async () => {
     if (confirm('Clear the Gemini API key? AI generation will be unavailable until a key is added again.')) {
       await window.soundkeys?.geminiSetKey('')
       setGeminiKeyIsSet(false)
       setGeminiKey('')
-      setGeminiStatus('🗑️ API key cleared.')
+      setGeminiStatus('API key cleared.')
       setTimeout(() => setGeminiStatus(''), 3000)
     }
   }
-
 
   const handleSaveDataLimit = async (limit) => {
     setDataLimit(limit)
@@ -331,7 +257,6 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
     dataDir && defaultDataDir &&
     normalizePathStr(dataDir) !== normalizePathStr(defaultDataDir)
   )
-
 
   return (
     <div className="page settings-page">
@@ -357,7 +282,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
               <path d="M11 5L6 9H2v6h4l5 4V5z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
               <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
-            Audio & Feedback
+            Audio &amp; Feedback
           </h2>
 
           <div className="settings-row">
@@ -395,47 +320,31 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
               />
             </div>
           </div>
+
+          {/* Active Theme Summary Row */}
+          <div className="settings-row highlight-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label">Active Sound Theme</span>
+              <span className="settings-row-desc">Currently playing theme for keyboard events</span>
+            </div>
+            <div className="settings-row-control flex-align-center gap-sm">
+              <span className="active-theme-name">{activeThemeName || 'SoundKeys Classic'}</span>
+              <button className="btn-primary-sm" onClick={onNavigateToStore}>
+                Manage in Store →
+              </button>
+            </div>
+          </div>
         </section>
 
-        {/* ── Themes / Playlists ────────────────────────────── */}
+        {/* ── Hotkey Sound Bindings Section (FEAT-035) ──────── */}
         <section className="settings-section">
-          <div className="section-header-row">
-            <h2 className="section-title margin-0">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/>
-                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
-              </svg>
-              Sound Themes & Playlists
-            </h2>
-
-            <button
-              className="btn-primary-sm"
-              onClick={() => { setEditingTheme(null); setIsCreatorOpen(true) }}
-            >
-              + Create Sound Theme
-            </button>
-          </div>
-
-          <p className="section-desc">
-            Select an audio playlist theme below or create/edit custom themes mapping audio files to key presses.
-          </p>
-
-          <div className="theme-grid">
-            {themes.length > 0 ? (
-              themes.map(theme => (
-                <ThemeCard
-                  key={theme.id}
-                  theme={theme}
-                  isActive={currentTheme?.id === theme.id}
-                  onSelect={onThemeSwitch}
-                  onEdit={handleEditTheme}
-                  onDelete={handleDeleteTheme}
-                />
-              ))
-            ) : (
-              <div className="empty-state">No themes found</div>
-            )}
-          </div>
+          <h2 className="section-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Hotkey Sound Bindings
+          </h2>
+          <HotkeyBindingsPanel />
         </section>
 
         {/* ── Data & Storage Management ────────────────────── */}
@@ -444,7 +353,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Data & Storage Management
+            Data &amp; Storage Management
           </h2>
 
           <div className="settings-row flex-col items-start">
@@ -507,7 +416,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
             </div>
             <div className="settings-row-control">
               <button className="btn-secondary-sm" onClick={handleExportCSV}>
-                📥 Export CSV
+                Export CSV
               </button>
             </div>
           </div>
@@ -542,7 +451,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
               <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.8"/>
               <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
             </svg>
-            System & Windows Integration
+            System &amp; Windows Integration
           </h2>
 
           <div className="settings-row">
@@ -602,30 +511,10 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
           </div>
         </section>
 
-        {/* ── About ─────────────────────────────────────────── */}
-        <section className="settings-section">
-          <h2 className="section-title">About SoundKeys</h2>
-          <div className="about-card">
-            <div className="about-logo">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M9 19V6l12-3v13M9 19c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm12 0c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2z"
-                  stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <div>
-              <div className="about-name">SoundKeys</div>
-              <div className="about-version">v2.1.0 · Created by Apoorv Nema</div>
-              <div className="about-tagline">Tactile audio feedback and sound effects for every keypress on Windows</div>
-            </div>
-          </div>
-        </section>
-
         {/* ── AI & Typing Test ─────────────────────────────────────────────── */}
         <section className="settings-section">
           <div className="section-header">
-            <div className="section-title">✨ AI &amp; Typing Test</div>
+            <div className="section-title">AI &amp; Typing Test</div>
             <div className="section-subtitle">Configure Gemini AI for paragraph generation in Typing Test</div>
           </div>
 
@@ -644,8 +533,8 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.84rem', fontWeight: 500 }}>
                   {geminiKeyIsSet
-                    ? <span style={{ color: '#4ade80' }}>✅ API Key Configured &amp; Active</span>
-                    : <span style={{ color: 'var(--t2)' }}>⚠️ No API Key (Offline Mode — built-in paragraphs active)</span>
+                    ? <span style={{ color: '#4ade80' }}>API Key Configured &amp; Active</span>
+                    : <span style={{ color: 'var(--t2)' }}>No API Key (Offline Mode — built-in paragraphs active)</span>
                   }
                 </span>
               </div>
@@ -667,7 +556,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
                     style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--t2)', cursor: 'pointer', fontSize: '0.9rem' }}
                     title={showGeminiKey ? 'Hide key' : 'Show key'}
                   >
-                    {showGeminiKey ? '🙈' : '👁️'}
+                    {showGeminiKey ? 'Hide' : 'Show'}
                   </button>
                 </div>
 
@@ -677,7 +566,7 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
                     onClick={handleSaveGeminiKey}
                     disabled={!geminiKey.trim()}
                   >
-                    💾 Validate &amp; Save Key
+                    Validate &amp; Save Key
                   </button>
                   {geminiKeyIsSet && (
                     <>
@@ -685,10 +574,10 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
                         className="typing-source-btn ai-btn"
                         onClick={() => handleValidateGeminiKey()}
                       >
-                        🧪 Test Key
+                        Test Key
                       </button>
                       <button className="btn-danger" onClick={handleClearGeminiKey}>
-                        🗑️ Clear Key
+                        Clear Key
                       </button>
                     </>
                   )}
@@ -700,28 +589,66 @@ export default function Settings({ settings, themes, currentTheme, onSettingChan
                   fontSize: '0.82rem',
                   padding: '8px 12px',
                   borderRadius: 6,
-                  background: geminiStatus.startsWith('✅') ? 'rgba(34,197,94,0.1)' : geminiStatus.startsWith('⌛') ? 'rgba(59,130,246,0.1)' : 'rgba(239,68,68,0.1)',
-                  color: geminiStatus.startsWith('✅') ? '#4ade80' : geminiStatus.startsWith('⌛') ? '#60a5fa' : '#f87171',
-                  border: '1px solid currentColor'
+                  background: 'rgba(147, 51, 234, 0.1)',
+                  color: 'var(--t1)',
+                  border: '1px solid var(--border)'
                 }}>
                   {geminiStatus}
                 </div>
               )}
             </div>
+          </div>
+        </section>
 
+        {/* ── Feature Log & Changelog Section (Modal trigger) ─ */}
+        <section className="settings-section">
+          <h2 className="section-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" stroke="currentColor" strokeWidth="1.8"/>
+              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+            Feature Registry &amp; Release Notes
+          </h2>
+
+          <div className="settings-row">
+            <div className="settings-row-info">
+              <span className="settings-row-label">Feature Log (39 Features)</span>
+              <span className="settings-row-desc">Browse complete versioned feature list and release history</span>
+            </div>
+            <div className="settings-row-control">
+              <button className="btn-primary-sm" onClick={() => setIsFeatureLogOpen(true)}>
+                View Feature Log
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* ── About ─────────────────────────────────────────── */}
+        <section className="settings-section">
+          <h2 className="section-title">About SoundKeys</h2>
+          <div className="about-card">
+            <div className="about-logo">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M9 19V6l12-3v13M9 19c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm12 0c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2z"
+                  stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <div>
+              <div className="about-name">SoundKeys</div>
+              <div className="about-version">v3.3.0 · Created by Apoorv Nema</div>
+              <div className="about-tagline">Tactile audio feedback, piano practice, and sound effects for Windows</div>
+            </div>
           </div>
         </section>
 
       </div>
 
-      {/* Custom Theme Creator / Editor Modal */}
-      <ThemeCreatorModal
-        isOpen={isCreatorOpen}
-        editingTheme={editingTheme}
-        onClose={handleModalClose}
-        onCreated={(updatedList) => {
-          if (onThemesUpdated) onThemesUpdated(updatedList)
-        }}
+      {/* Feature Log Modal (No Emojis, Version Separation) */}
+      <FeatureLogModal
+        isOpen={isFeatureLogOpen}
+        onClose={() => setIsFeatureLogOpen(false)}
       />
     </div>
   )
