@@ -5,10 +5,11 @@ import Analytics from './pages/Analytics'
 import Settings from './pages/Settings'
 import TypingTest from './pages/TypingTest'
 import KeyboardLayout from './pages/KeyboardLayout'
+import PianoPractice from './pages/PianoPractice'
+import Store from './pages/Store'
 import AudioEngine from './components/AudioEngine'
 
 class ErrorBoundary extends React.Component {
-
   constructor(props) {
     super(props)
     this.state = { hasError: false, error: null }
@@ -85,10 +86,10 @@ export default function App() {
     // sound:play — key pressed in main process
     const u1 = window.soundkeys.onPlaySound((data) => {
       setLastKeyEvent({ ...data, ts: Date.now() })
-      audioRef.current?.play(data.soundType, data.externalFile)
+      audioRef.current?.play(data.soundType, data.externalFile, data.keycode, null, data.isHotkeyBinding)
     })
 
-    // theme:changed — switched via tray menu
+    // theme:changed — switched via tray menu or store
     const u2 = window.soundkeys.onThemeChanged((theme) => {
       setCurrentTheme(theme)
       audioRef.current?.loadTheme(theme)
@@ -115,6 +116,18 @@ export default function App() {
     if (theme) {
       setCurrentTheme(theme)
       audioRef.current?.loadTheme(theme)
+    }
+  }, [])
+
+  const handleThemesUpdated = useCallback((newThemes) => {
+    setThemes(newThemes)
+    if (typeof window.soundkeys?.getCurrentTheme === 'function') {
+      window.soundkeys.getCurrentTheme().then(ct => {
+        if (ct) {
+          setCurrentTheme(ct)
+          audioRef.current?.loadTheme(ct)
+        }
+      })
     }
   }, [])
 
@@ -171,7 +184,11 @@ export default function App() {
 
       {/* Body: sidebar + content */}
       <div className="app-body">
-        <Sidebar activePage={activePage} onNavigate={setActivePage} />
+        <Sidebar
+          activePage={activePage}
+          onNavigate={setActivePage}
+          currentThemeId={currentTheme?.id}
+        />
 
         <main className="content">
           <ErrorBoundary key={activePage}>
@@ -189,27 +206,30 @@ export default function App() {
             {activePage === 'keyboard-layout' && (
               <KeyboardLayout />
             )}
+            {activePage === 'piano-practice' && (
+              <PianoPractice
+                currentTheme={currentTheme}
+                onThemeSwitch={handleThemeSwitch}
+                audioRef={audioRef}
+              />
+            )}
+            {activePage === 'store' && (
+              <Store
+                themes={themes}
+                currentTheme={currentTheme}
+                onThemeSwitch={handleThemeSwitch}
+                onThemesUpdated={handleThemesUpdated}
+              />
+            )}
             {activePage === 'analytics' && (
               <Analytics />
             )}
             {activePage === 'settings' && (
               <Settings
                 settings={settings}
-                themes={themes}
-                currentTheme={currentTheme}
                 onSettingChange={handleSettingChange}
-                onThemeSwitch={handleThemeSwitch}
-                onThemesUpdated={(newThemes) => {
-                  setThemes(newThemes)
-                  if (typeof window.soundkeys?.getCurrentTheme === 'function') {
-                    window.soundkeys.getCurrentTheme().then(ct => {
-                      if (ct) {
-                        setCurrentTheme(ct)
-                        audioRef.current?.loadTheme(ct)
-                      }
-                    })
-                  }
-                }}
+                activeThemeName={currentTheme?.name}
+                onNavigateToStore={() => setActivePage('store')}
               />
             )}
           </ErrorBoundary>
@@ -218,4 +238,3 @@ export default function App() {
     </div>
   )
 }
-
